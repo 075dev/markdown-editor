@@ -173,9 +173,20 @@ function applyToDocument(
   if (typeof document === 'undefined') return
   const root = document.documentElement
   if (!root) return
-  root.style.setProperty('--font-sans', toFontStack(sansFont, 'sans'))
-  root.style.setProperty('--font-mono', toFontStack(monoFont, 'mono'))
+  const sansStack = toFontStack(sansFont, 'sans')
+  const monoStack = toFontStack(monoFont, 'mono')
+  root.style.setProperty('--font-sans', sansStack)
+  root.style.setProperty('--font-mono', monoStack)
   root.style.setProperty('--font-size-base', `${fontSize}px`)
+
+  // 兜底：把 font-family 直接写到 <body> 的 inline style。
+  // 某些 Vue scoped CSS + CSS 变量的组合下，组件内 `var(--font-sans)`
+  // 可能在某些 WebView 渲染进程里不解析；inline style on body 是最高优先级
+  // 且不受 Vue scoped CSS 重写影响，能 100% 生效。
+  if (document.body) {
+    document.body.style.fontFamily = sansStack
+    document.body.style.fontSize = `${fontSize}px`
+  }
 }
 
 export const useSettingsStore = defineStore('settings', () => {

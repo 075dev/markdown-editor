@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useSettingsStore, toFontStack } from '@/stores/settings'
 import { createMarkdownEditor, type CreatedEditor } from '@/editor/createEditor'
 
 const workspace = useWorkspaceStore()
+const settings = useSettingsStore()
 const containerRef = ref<HTMLDivElement | null>(null)
 let editor: CreatedEditor | null = null
 
@@ -11,11 +13,25 @@ onMounted(() => {
   if (!containerRef.value) return
   editor = createMarkdownEditor(containerRef.value, {
     initialDoc: workspace.activeTab?.content ?? '',
+    monoFont: toFontStack(settings.monoFont, 'mono'),
+    fontSize: settings.fontSize,
     onChange: (value) => {
       workspace.updateActiveContent(value)
     },
   })
 })
+
+// 监听 settings 变化，实时更新 CodeMirror 字体与字号
+watch(
+  () => [settings.monoFont, settings.fontSize] as const,
+  ([monoFont, fontSize]) => {
+    if (!editor) return
+    editor.applyTheme({
+      monoFont: toFontStack(monoFont, 'mono'),
+      fontSize,
+    })
+  },
+)
 
 watch(
   () => workspace.activeTabPath,
