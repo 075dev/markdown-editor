@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watchEffect } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { renderMarkdown } from '@/markdown/pipeline'
+import { mountPanzoomToolbar, type PanzoomHandle } from '@/editor/panzoomToolbar'
 
 const workspace = useWorkspaceStore()
 const html = ref<string>('')
 const bodyRef = ref<HTMLElement | null>(null)
+
+const handles = new WeakMap<HTMLElement, PanzoomHandle>()
 
 watchEffect(async () => {
   const tab = workspace.activeTab
@@ -15,17 +18,17 @@ watchEffect(async () => {
   }
   html.value = await renderMarkdown(tab.content)
 
-  // 渲染完后给 PlantUML <img> 挂上失败降级处理：
-  // onerror 时把隐藏的 <pre class="plantuml-fallback"> 切到可见。
   await nextTick()
   const root = bodyRef.value
   if (!root) return
-  const imgs = root.querySelectorAll<HTMLImageElement>('img.plantuml-diagram')
+
+  // 1) 降级：每个 <img.plantuml-diagram> 挂 onerror
+  const imgs = Array.from(root.querySelectorAll<HTMLImageElement>('img.plantuml-diagram'))
   imgs.forEach((img) => {
     if (img.dataset.plantumlBound === '1') return
     img.dataset.plantumlBound = '1'
     img.addEventListener('error', () => {
-      const container = img.parentElement
+      const container = img.closest<HTMLElement>('.plantuml-container')
       if (!container) return
       const fallback = container.querySelector<HTMLElement>('pre.plantuml-fallback')
       if (fallback) {
@@ -35,6 +38,20 @@ watchEffect(async () => {
       }
     })
   })
+
+  // 2) pan/zoom：每个 .plantuml-container 实例化一个 panzoom + 工具栏
+  const containers = Array.from(root.querySelectorAll<HTMLElement>('.plantuml-container'))
+  containers.forEach((container) => {
+    if (handles.has(container)) return
+    const img = container.querySelector<HTMLImageElement>('img.plantuml-diagram')
+    if (!img) return
+    const handle = mountPanzoomToolbar(container, img)
+    handles.set(container, handle)
+  })
+})
+
+onBeforeUnmount(() => {
+  // WeakMap 自动 GC；如果要立刻释放可遍历 body 子节点
 })
 
 const fileName = computed(() => workspace.activeTab?.name ?? '')
@@ -147,17 +164,28 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 
 /* PlantUML 容器：图默认显示，源码降级块默认隐藏 */
 .markdown-body .plantuml-container {
+  position: relative;
   margin: 1em 0;
   padding: 12px;
   background: var(--bg-elev);
   border-radius: 6px;
   text-align: center;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.markdown-body .plantuml-container:active {
+  cursor: grabbing;
 }
 
 .markdown-body .plantuml-diagram {
   display: inline-block;
   max-width: 100%;
-  background: #ffffff; /* PlantUML 默认输出浅色背景，dark mode 下也保持可读 */
+  background: #ffffff;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: 0 0;
 }
 
 .markdown-body .plantuml-fallback {
@@ -167,5 +195,65 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 
 .markdown-body .plantuml-container[data-plantuml-state='fallback'] .plantuml-fallback {
   display: block;
+}
+
+/* pan/zoom 浮动工具栏：默认悬停显示 */
+.plantuml-panzoom-toolbar {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  z-index: 2;
+}
+
+.markdown-body .plantuml-container:hover .plantuml-panzoom-toolbar,
+.plantuml-panzoom-toolbar:focus-within,
+.plantuml-panzoom-toolbar[data-always-visible='1'] {
+  opacity: 1;
+}
+
+.plantuml-panzoom-toolbar__btn {
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  font: inherit;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.plantuml-panzoom-toolbar__btn:hover {
+  background: var(--bg-elev);
+  border-color: var(--accent);
+}
+
+.plantuml-panzoom-toolbar__btn--zoom-reset {
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.plantuml-panzoom-toolbar__hint {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
 </style>
