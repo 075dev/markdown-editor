@@ -21,9 +21,14 @@
   - Lint / Format：ESLint + Prettier（Vue 3 模板）
   - 包管理器：**pnpm**（已检测 v11.1.2）
 
-- **当前实际文件**：`AGENTS.md`（已更新）、即将生成的 `package.json` / `vite.config.ts` / `src/` / `src-tauri/` / `.gitignore` 等。
-
-> 如果你（agent）正在阅读此文件，而工作区里 **已经有了源码**，请更新本文档的 “现状” 一节，而不是再开一个新的 `AGENTS.md`。
+- **当前实际文件**：`AGENTS.md`（已更新）、`package.json` / `vite.config.ts` / `src/` / `src-tauri/` / `.gitignore` 等。
+- **Phase 1 验证结果（2026-08-04）**：
+  - `pnpm typecheck` ✅ 通过
+  - `pnpm test` ✅ 8/8 通过
+  - `pnpm build` ✅ 3.17s
+  - `cargo check`（Rust） ✅ 通过
+  - `pnpm tauri:build` ✅ 1m50s 产出 `markdown-editor.exe` + `MarkDownEditor_0.1.0_x64_en-US.msi` + `MarkDownEditor_0.1.0_x64-setup.exe`
+- **环境配置**：`~/.bashrc` / `~/.bash_profile` / Windows 用户级 PATH 均已加入 `C:\Users\075\.cargo\bin`；npm 子进程通过 `scripts/with-rust.mjs` 自动注入 PATH 兜底。
 
 ## 2. 在动笔之前的检查清单
 

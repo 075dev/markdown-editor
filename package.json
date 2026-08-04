@@ -9,8 +9,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "node scripts/with-rust.mjs tauri dev",
+    "tauri:build": "node scripts/with-rust.mjs tauri build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,33 +18,33 @@
     "format": "prettier --write \"src/**/*.{vue,ts,tsx,css,md}\""
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.18.1",
+    "@codemirror/commands": "^6.7.1",
     "@codemirror/lang-markdown": "^6.3.0",
     "@codemirror/language": "^6.10.2",
     "@codemirror/language-data": "^6.5.1",
+    "@codemirror/search": "^6.5.6",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.34.1",
-    "@codemirror/commands": "^6.7.1",
-    "@codemirror/search": "^6.5.6",
-    "@codemirror/autocomplete": "^6.18.1",
     "@lezer/highlight": "^1.2.1",
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
+    "@tauri-apps/plugin-fs": "^2.5.1",
     "katex": "^0.16.11",
     "mermaid": "^11.4.0",
     "pinia": "^2.2.4",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",
-    "rehype-sanitize": "^6.0.0",
-    "rehype-stringify": "^10.0.1",
     "shiki": "^1.22.0",
     "unified": "^11.0.5",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/katex": "^0.16.7",
     "@types/node": "^22.7.4",
     "@vitejs/plugin-vue": "^5.1.4",
@@ -60,6 +60,9 @@
   },
   "packageManager": "pnpm@11.1.2",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "vue-demi"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "vue-demi"
+    ]
   }
 }
