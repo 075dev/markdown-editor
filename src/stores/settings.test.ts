@@ -58,26 +58,50 @@ describe('settings store', () => {
     expect(s.viewMode).toBe('split')
   })
 
-  it('cycleSansFont cycles system → inter → serif → system', () => {
+  it('setSansFont / setMonoFont set values directly', () => {
     const s = useSettingsStore()
-    expect(s.sansFont).toBe('system')
-    s.cycleSansFont()
-    expect(s.sansFont).toBe('inter')
-    s.cycleSansFont()
+    s.setSansFont('serif')
     expect(s.sansFont).toBe('serif')
-    s.cycleSansFont()
-    expect(s.sansFont).toBe('system')
+    s.setMonoFont('fira')
+    expect(s.monoFont).toBe('fira')
   })
 
-  it('cycleMonoFont cycles system → jetbrains → fira → system', () => {
+  it('fontSize defaults to 14 and clamps to [10, 24]', () => {
     const s = useSettingsStore()
-    expect(s.monoFont).toBe('system')
-    s.cycleMonoFont()
-    expect(s.monoFont).toBe('jetbrains')
-    s.cycleMonoFont()
+    expect(s.fontSize).toBe(14)
+    s.setFontSize(50)
+    expect(s.fontSize).toBe(24)
+    s.setFontSize(2)
+    expect(s.fontSize).toBe(10)
+    s.setFontSize(16.4) // 不接受小数，向上取整到 16
+    expect(s.fontSize).toBe(16)
+    s.setFontSize(Number.NaN)
+    expect(s.fontSize).toBe(14)
+  })
+
+  it('setTheme / setSansFont / setMonoFont update directly', () => {
+    const s = useSettingsStore()
+    s.setTheme('dark')
+    expect(s.theme).toBe('dark')
+    s.setSansFont('serif')
+    expect(s.sansFont).toBe('serif')
+    s.setMonoFont('fira')
     expect(s.monoFont).toBe('fira')
-    s.cycleMonoFont()
+  })
+
+  it('resetAll restores defaults', () => {
+    const s = useSettingsStore()
+    s.theme = 'dark'
+    s.viewMode = 'preview'
+    s.sansFont = 'serif'
+    s.monoFont = 'fira'
+    s.fontSize = 20
+    s.resetAll()
+    expect(s.theme).toBe('system')
+    expect(s.viewMode).toBe('split')
+    expect(s.sansFont).toBe('system')
     expect(s.monoFont).toBe('system')
+    expect(s.fontSize).toBe(14)
   })
 
   it('persists settings to localStorage', async () => {
@@ -87,8 +111,9 @@ describe('settings store', () => {
     s.viewMode = 'preview'
     s.sansFont = 'serif'
     s.monoFont = 'fira'
+    s.fontSize = 18
     await new Promise((r) => setTimeout(r, 0))
-    const raw = localStorage.getItem('mde:settings:v3')
+    const raw = localStorage.getItem('mde:settings:v4')
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!)
     expect(parsed.theme).toBe('dark')
@@ -96,6 +121,7 @@ describe('settings store', () => {
     expect(parsed.viewMode).toBe('preview')
     expect(parsed.sansFont).toBe('serif')
     expect(parsed.monoFont).toBe('fira')
+    expect(parsed.fontSize).toBe(18)
   })
 
   it('restores settings from localStorage on next store creation', async () => {
@@ -104,6 +130,7 @@ describe('settings store', () => {
     s1.viewMode = 'edit'
     s1.sansFont = 'serif'
     s1.monoFont = 'fira'
+    s1.fontSize = 20
     await new Promise((r) => setTimeout(r, 0))
 
     setActivePinia(createPinia())
@@ -112,5 +139,6 @@ describe('settings store', () => {
     expect(s2.viewMode).toBe('edit')
     expect(s2.sansFont).toBe('serif')
     expect(s2.monoFont).toBe('fira')
+    expect(s2.fontSize).toBe(20)
   })
 })

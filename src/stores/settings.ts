@@ -6,7 +6,10 @@ export type ViewMode = 'split' | 'edit' | 'preview'
 export type SansFont = 'system' | 'inter' | 'serif'
 export type MonoFont = 'system' | 'jetbrains' | 'fira'
 
-const STORAGE_KEY = 'mde:settings:v3'
+const STORAGE_KEY = 'mde:settings:v4'
+export const FONT_SIZE_MIN = 10
+export const FONT_SIZE_MAX = 24
+export const FONT_SIZE_DEFAULT = 14
 
 interface PersistedSettings {
   theme: Theme
@@ -14,6 +17,7 @@ interface PersistedSettings {
   viewMode: ViewMode
   sansFont: SansFont
   monoFont: MonoFont
+  fontSize: number
 }
 
 /**
@@ -48,6 +52,11 @@ export const MONO_FONT_LABELS: Record<MonoFont, string> = {
   fira: 'Fira Code',
 }
 
+export function clampFontSize(size: number): number {
+  if (Number.isNaN(size)) return FONT_SIZE_DEFAULT
+  return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, Math.round(size)))
+}
+
 function load(): PersistedSettings {
   if (typeof localStorage === 'undefined') {
     return {
@@ -56,6 +65,7 @@ function load(): PersistedSettings {
       viewMode: 'split',
       sansFont: 'system',
       monoFont: 'system',
+      fontSize: FONT_SIZE_DEFAULT,
     }
   }
   try {
@@ -67,6 +77,7 @@ function load(): PersistedSettings {
         viewMode: 'split',
         sansFont: 'system',
         monoFont: 'system',
+        fontSize: FONT_SIZE_DEFAULT,
       }
     }
     const parsed = JSON.parse(raw) as Partial<PersistedSettings>
@@ -76,6 +87,10 @@ function load(): PersistedSettings {
       viewMode: parsed.viewMode ?? 'split',
       sansFont: parsed.sansFont ?? 'system',
       monoFont: parsed.monoFont ?? 'system',
+      fontSize:
+        typeof parsed.fontSize === 'number'
+          ? clampFontSize(parsed.fontSize)
+          : FONT_SIZE_DEFAULT,
     }
   } catch {
     return {
@@ -84,8 +99,26 @@ function load(): PersistedSettings {
       viewMode: 'split',
       sansFont: 'system',
       monoFont: 'system',
+      fontSize: FONT_SIZE_DEFAULT,
     }
   }
+}
+
+/**
+ * 把 fontSize / fontFamily 同步到 <html> 的 CSS 变量上，让全局 UI 立即生效。
+ * 调用方负责传入 document 对象；测试环境可能没有 document，需要判断。
+ */
+function applyToDocument(
+  sansFont: SansFont,
+  monoFont: MonoFont,
+  fontSize: number,
+) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (!root) return
+  root.style.setProperty('--font-sans', SANS_FONT_STACKS[sansFont])
+  root.style.setProperty('--font-mono', MONO_FONT_STACKS[monoFont])
+  root.style.setProperty('--font-size-base', `${fontSize}px`)
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -95,20 +128,25 @@ export const useSettingsStore = defineStore('settings', () => {
   const viewMode = ref<ViewMode>(initial.viewMode)
   const sansFont = ref<SansFont>(initial.sansFont)
   const monoFont = ref<MonoFont>(initial.monoFont)
+  const fontSize = ref<number>(initial.fontSize)
 
   watch(
-    [theme, splitRatio, viewMode, sansFont, monoFont],
-    ([t, r, v, sf, mf]) => {
-      if (typeof localStorage === 'undefined') return
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ theme: t, splitRatio: r, viewMode: v, sansFont: sf, monoFont: mf }),
-      )
-      // 同步把 CSS 变量写到 <html> 上，让全局字体立即生效
-      if (typeof document !== 'undefined') {
-        document.documentElement.style.setProperty('--font-sans', SANS_FONT_STACKS[sf])
-        document.documentElement.style.setProperty('--font-mono', MONO_FONT_STACKS[mf])
+    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize],
+    ([t, r, v, sf, mf, fs]) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            theme: t,
+            splitRatio: r,
+            viewMode: v,
+            sansFont: sf,
+            monoFont: mf,
+            fontSize: fs,
+          }),
+        )
       }
+      applyToDocument(sf, mf, fs)
     },
     { deep: true, immediate: true },
   )
@@ -117,6 +155,10 @@ export const useSettingsStore = defineStore('settings', () => {
     const order: Theme[] = ['light', 'dark', 'system']
     const idx = order.indexOf(theme.value)
     theme.value = order[(idx + 1) % order.length]
+  }
+
+  function setTheme(value: Theme) {
+    theme.value = value
   }
 
   function setViewMode(mode: ViewMode) {
@@ -129,16 +171,25 @@ export const useSettingsStore = defineStore('settings', () => {
     viewMode.value = order[(idx + 1) % order.length]
   }
 
-  function cycleSansFont() {
-    const order: SansFont[] = ['system', 'inter', 'serif']
-    const idx = order.indexOf(sansFont.value)
-    sansFont.value = order[(idx + 1) % order.length]
+  function setSansFont(value: SansFont) {
+    sansFont.value = value
   }
 
-  function cycleMonoFont() {
-    const order: MonoFont[] = ['system', 'jetbrains', 'fira']
-    const idx = order.indexOf(monoFont.value)
-    monoFont.value = order[(idx + 1) % order.length]
+  function setMonoFont(value: MonoFont) {
+    monoFont.value = value
+  }
+
+  function setFontSize(value: number) {
+    fontSize.value = clampFontSize(value)
+  }
+
+  function resetAll() {
+    theme.value = 'system'
+    splitRatio.value = 0.5
+    viewMode.value = 'split'
+    sansFont.value = 'system'
+    monoFont.value = 'system'
+    fontSize.value = FONT_SIZE_DEFAULT
   }
 
   return {
@@ -147,10 +198,14 @@ export const useSettingsStore = defineStore('settings', () => {
     viewMode,
     sansFont,
     monoFont,
+    fontSize,
     toggleTheme,
+    setTheme,
     setViewMode,
     cycleViewMode,
-    cycleSansFont,
-    cycleMonoFont,
+    setSansFont,
+    setMonoFont,
+    setFontSize,
+    resetAll,
   }
 })

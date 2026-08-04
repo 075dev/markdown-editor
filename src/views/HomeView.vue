@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore } from '@/stores/settings'
 import Sidebar from '@/components/Sidebar.vue'
@@ -7,6 +8,7 @@ import EditorPane from '@/components/EditorPane.vue'
 import PreviewPane from '@/components/PreviewPane.vue'
 import TitleBar from '@/components/TitleBar.vue'
 
+const router = useRouter()
 const workspace = useWorkspaceStore()
 const settings = useSettingsStore()
 
@@ -56,6 +58,10 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (k === '3') {
     e.preventDefault()
     settings.setViewMode('preview')
+  } else if (k === ',') {
+    // Ctrl+, 打开设置（Mac: ⌘+,）
+    e.preventDefault()
+    void router.push({ name: 'settings' })
   }
 }
 

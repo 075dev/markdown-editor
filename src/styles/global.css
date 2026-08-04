@@ -11,6 +11,8 @@
   --code-bg: #f4f4f5;
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  /* 字号由 settings store 通过 <html style="--font-size-base"> 注入 */
+  --font-size-base: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,7 +41,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
