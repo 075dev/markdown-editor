@@ -17,6 +17,14 @@ export interface SaveFileResult {
   path: string
 }
 
+/** 新建文件选项 */
+export interface NewFileOptions {
+  /** 建议的初始内容（默认空） */
+  initialContent?: string
+  /** 建议文件名（默认 untitled.md） */
+  suggestedName?: string
+}
+
 export interface DirEntry {
   name: string
   path: string
@@ -47,6 +55,18 @@ async function tauriSaveFile(
   }))
   if (!target) return null
   await writeTextFile(target, content)
+  return { path: target }
+}
+
+async function tauriNewFile(opts: NewFileOptions = {}): Promise<SaveFileResult | null> {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+  const target = await save({
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+    defaultPath: opts.suggestedName ?? 'untitled.md',
+  })
+  if (!target) return null
+  await writeTextFile(target, opts.initialContent ?? '')
   return { path: target }
 }
 
@@ -128,6 +148,11 @@ async function webSaveFile(content: string, suggestedPath?: string): Promise<Sav
   return { path: a.download }
 }
 
+async function webNewFile(opts: NewFileOptions = {}): Promise<SaveFileResult | null> {
+  // Web 模式下没有真实文件系统，新建即触发下载
+  return webSaveFile(opts.initialContent ?? '', opts.suggestedName ?? 'untitled.md')
+}
+
 /* ---------- 公开接口 ---------- */
 
 export async function openMarkdownFile(): Promise<OpenFileResult | null> {
@@ -139,6 +164,10 @@ export async function saveMarkdownFile(
   suggestedPath?: string,
 ): Promise<SaveFileResult | null> {
   return isTauri() ? tauriSaveFile(content, suggestedPath) : webSaveFile(content, suggestedPath)
+}
+
+export async function createNewFile(opts: NewFileOptions = {}): Promise<SaveFileResult | null> {
+  return isTauri() ? tauriNewFile(opts) : webNewFile(opts)
 }
 
 export async function pickWorkspaceDirectory(): Promise<string | null> {

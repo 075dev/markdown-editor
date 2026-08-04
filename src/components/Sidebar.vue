@@ -5,6 +5,17 @@ import { useWorkspaceStore } from '@/stores/workspace'
 const workspace = useWorkspaceStore()
 
 const rootLabel = computed(() => workspace.rootPath ?? '尚未打开目录')
+
+function handleClose(path: string) {
+  const ok = workspace.closeTab(path)
+  if (ok) return
+  // 有未保存改动：弹原生确认
+  // Tauri WebView 下 confirm 会被自动支持；Web 环境同样支持。
+  const discard = window.confirm('当前文件有未保存的修改，确定要关闭吗？')
+  if (discard) {
+    workspace.forceCloseTab(path)
+  }
+}
 </script>
 
 <template>
@@ -34,14 +45,18 @@ const rootLabel = computed(() => workspace.rootPath ?? '尚未打开目录')
           v-for="tab in workspace.tabs"
           :key="tab.path"
           class="sidebar__tab"
-          :class="{ 'is-active': workspace.activeTabPath === tab.path }"
+          :class="{
+            'is-active': workspace.activeTabPath === tab.path,
+            'is-dirty': workspace.isTabDirty(tab.path),
+          }"
           @click="workspace.activateTab(tab.path)"
+          :data-testid="`tab-${tab.path}`"
         >
           <span class="sidebar__tab-name">{{ tab.name }}</span>
           <button
             type="button"
             class="sidebar__tab-close"
-            @click.stop="workspace.closeTab(tab.path)"
+            @click.stop="handleClose(tab.path)"
             aria-label="关闭标签"
           >
             ×
@@ -113,6 +128,11 @@ const rootLabel = computed(() => workspace.rootPath ?? '尚未打开目录')
 
 .sidebar__tab.is-active {
   background: var(--bg-elev);
+  color: var(--accent);
+}
+
+.sidebar__tab.is-dirty .sidebar__tab-name::before {
+  content: '● ';
   color: var(--accent);
 }
 

@@ -47,3 +47,10 @@ pnpm typecheck
 ## 安全
 
 预览 HTML 经过 `rehype-sanitize` 过滤，禁止 `<script>`、`javascript:` 链接与任意 iframe。 详见 `src/markdown/pipeline.ts`。
+
+
+```plantuml
+@startuml
+   class test
+@enduml
+```
