@@ -15,8 +15,36 @@
   --font-size-base: 14px;
 }
 
+/* 显式主题（来自 settings.theme = light / dark）覆盖默认 */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-elev: #f7f7f8;
+  --bg-sidebar: #f2f2f3;
+  --fg: #1a1a1a;
+  --fg-muted: #6b6b6b;
+  --border: #e5e5e7;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  --code-bg: #f4f4f5;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --bg-elev: #161922;
+  --bg-sidebar: #11131a;
+  --fg: #e7e9ee;
+  --fg-muted: #9aa3b2;
+  --border: #232732;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --code-bg: #1b1d24;
+}
+
+/* 跟随系统模式（settings.theme = system）回退到媒体查询 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1115;
     --bg-elev: #161922;
     --bg-sidebar: #11131a;

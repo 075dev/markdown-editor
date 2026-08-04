@@ -25,6 +25,8 @@ const showPreview = computed(() => viewMode.value !== 'edit')
  *   Ctrl+N         - 新建文件
  *   Ctrl+O         - 打开文件
  *   Ctrl+1/2/3     - 视图切换（编辑/双栏/预览）
+ *   Ctrl+B         - 切换目录栏
+ *   Ctrl+,         - 打开设置
  */
 function onKeyDown(e: KeyboardEvent) {
   const ctrl = e.ctrlKey || e.metaKey
@@ -58,6 +60,10 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (k === '3') {
     e.preventDefault()
     settings.setViewMode('preview')
+  } else if (k === 'b' && !inField) {
+    // Ctrl+B 切换目录栏（VSCode 同款）
+    e.preventDefault()
+    settings.toggleSidebar()
   } else if (k === ',') {
     // Ctrl+, 打开设置（Mac: ⌘+,）
     e.preventDefault()
@@ -74,10 +80,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="home" :class="['home--' + viewMode, { 'is-ready': isReady }]">
+  <div
+    class="home"
+    :class="[
+      'home--' + viewMode,
+      { 'is-ready': isReady, 'is-sidebar-collapsed': settings.sidebarCollapsed },
+    ]"
+  >
     <TitleBar />
     <div class="home__body">
-      <Sidebar class="home__sidebar" />
+      <Sidebar v-if="!settings.sidebarCollapsed" class="home__sidebar" />
       <main class="home__main">
         <template v-if="isReady">
           <EditorPane v-if="showEditor" class="home__editor" />
@@ -125,6 +137,10 @@ onBeforeUnmount(() => {
 .home__sidebar {
   flex: 0 0 240px;
   border-right: 1px solid var(--border);
+}
+
+.home.is-sidebar-collapsed .home__body {
+  /* sidebar 隐藏时 main 自然撑满，无需特殊处理 */
 }
 
 .home__main {

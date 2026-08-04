@@ -23,6 +23,7 @@ interface PersistedSettings {
   sansFont: string
   monoFont: string
   fontSize: number
+  sidebarCollapsed: boolean
 }
 
 /**
@@ -121,6 +122,7 @@ function load(): PersistedSettings {
       sansFont: DEFAULT_SANS_FONT,
       monoFont: DEFAULT_MONO_FONT,
       fontSize: FONT_SIZE_DEFAULT,
+      sidebarCollapsed: false,
     }
   }
   try {
@@ -133,6 +135,7 @@ function load(): PersistedSettings {
         sansFont: DEFAULT_SANS_FONT,
         monoFont: DEFAULT_MONO_FONT,
         fontSize: FONT_SIZE_DEFAULT,
+        sidebarCollapsed: false,
       }
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>
@@ -147,6 +150,10 @@ function load(): PersistedSettings {
         typeof parsed.fontSize === 'number'
           ? clampFontSize(parsed.fontSize)
           : FONT_SIZE_DEFAULT,
+      sidebarCollapsed:
+        typeof parsed.sidebarCollapsed === 'boolean'
+          ? parsed.sidebarCollapsed
+          : false,
     }
   } catch {
     return {
@@ -156,6 +163,7 @@ function load(): PersistedSettings {
       sansFont: DEFAULT_SANS_FONT,
       monoFont: DEFAULT_MONO_FONT,
       fontSize: FONT_SIZE_DEFAULT,
+      sidebarCollapsed: false,
     }
   }
 }
@@ -165,11 +173,29 @@ export function clampFontSize(size: number): number {
   return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, Math.round(size)))
 }
 
+/**
+ * 把当前主题写到 <html data-theme="light|dark"> 上。
+ * CSS 用 [data-theme=...] 选择器覆盖 `:root` 默认变量。
+ * theme === 'system' 时只移除属性，让浏览器跟随 OS。
+ */
+function applyTheme(theme: Theme) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (!root) return
+  if (theme === 'system') {
+    root.removeAttribute('data-theme')
+  } else {
+    root.setAttribute('data-theme', theme)
+  }
+}
+
 function applyToDocument(
   sansFont: string,
   monoFont: string,
   fontSize: number,
+  theme: Theme,
 ) {
+  applyTheme(theme)
   if (typeof document === 'undefined') return
   const root = document.documentElement
   if (!root) return
@@ -197,10 +223,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const sansFont = ref<string>(initial.sansFont)
   const monoFont = ref<string>(initial.monoFont)
   const fontSize = ref<number>(initial.fontSize)
+  const sidebarCollapsed = ref<boolean>(initial.sidebarCollapsed)
 
   watch(
-    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize],
-    ([t, r, v, sf, mf, fs]) => {
+    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed],
+    ([t, r, v, sf, mf, fs, sc]) => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(
           STORAGE_KEY,
@@ -211,10 +238,11 @@ export const useSettingsStore = defineStore('settings', () => {
             sansFont: sf,
             monoFont: mf,
             fontSize: fs,
+            sidebarCollapsed: sc,
           }),
         )
       }
-      applyToDocument(sf, mf, fs)
+      applyToDocument(sf, mf, fs, t)
     },
     { deep: true, immediate: true },
   )
@@ -256,6 +284,14 @@ export const useSettingsStore = defineStore('settings', () => {
     fontSize.value = clampFontSize(value)
   }
 
+  function toggleSidebar() {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+  }
+
+  function setSidebarCollapsed(value: boolean) {
+    sidebarCollapsed.value = value
+  }
+
   function resetAll() {
     theme.value = 'system'
     splitRatio.value = 0.5
@@ -263,6 +299,7 @@ export const useSettingsStore = defineStore('settings', () => {
     sansFont.value = DEFAULT_SANS_FONT
     monoFont.value = DEFAULT_MONO_FONT
     fontSize.value = FONT_SIZE_DEFAULT
+    sidebarCollapsed.value = false
   }
 
   return {
@@ -272,6 +309,7 @@ export const useSettingsStore = defineStore('settings', () => {
     sansFont,
     monoFont,
     fontSize,
+    sidebarCollapsed,
     toggleTheme,
     setTheme,
     setViewMode,
@@ -279,6 +317,8 @@ export const useSettingsStore = defineStore('settings', () => {
     setSansFont,
     setMonoFont,
     setFontSize,
+    toggleSidebar,
+    setSidebarCollapsed,
     resetAll,
   }
 })

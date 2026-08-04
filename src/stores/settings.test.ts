@@ -26,6 +26,7 @@ describe('settings store', () => {
     expect(s.viewMode).toBe('split')
     expect(s.sansFont).toBe('system-ui')
     expect(s.monoFont).toBe('ui-monospace')
+    expect(s.sidebarCollapsed).toBe(false)
   })
 
   it('toggleTheme cycles light → dark → system → light', () => {
@@ -99,12 +100,45 @@ describe('settings store', () => {
     s.sansFont = 'Avenir'
     s.monoFont = 'Cascadia Code'
     s.fontSize = 20
+    s.sidebarCollapsed = true
     s.resetAll()
     expect(s.theme).toBe('system')
     expect(s.viewMode).toBe('split')
     expect(s.sansFont).toBe('system-ui')
     expect(s.monoFont).toBe('ui-monospace')
     expect(s.fontSize).toBe(14)
+    expect(s.sidebarCollapsed).toBe(false)
+  })
+
+  it('sidebarCollapsed starts false and toggles correctly', () => {
+    const s = useSettingsStore()
+    expect(s.sidebarCollapsed).toBe(false)
+    s.toggleSidebar()
+    expect(s.sidebarCollapsed).toBe(true)
+    s.toggleSidebar()
+    expect(s.sidebarCollapsed).toBe(false)
+  })
+
+  it('setSidebarCollapsed sets value directly', () => {
+    const s = useSettingsStore()
+    s.setSidebarCollapsed(true)
+    expect(s.sidebarCollapsed).toBe(true)
+    s.setSidebarCollapsed(false)
+    expect(s.sidebarCollapsed).toBe(false)
+  })
+
+  it('setTheme writes data-theme to <html> and removes it for system', async () => {
+    const s = useSettingsStore()
+    await new Promise((r) => setTimeout(r, 0))
+    s.setTheme('light')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+    s.setTheme('dark')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    s.setTheme('system')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
   })
 
   it('persists settings to localStorage', async () => {

@@ -26,6 +26,10 @@ const themeLabel = computed(() => {
   }
 })
 
+const sidebarLabel = computed(() =>
+  settings.sidebarCollapsed ? '📁' : '📂',
+)
+
 const viewButtons: Array<{ mode: ViewMode; label: string; title: string }> = [
   { mode: 'edit', label: '✎', title: '纯编辑 (Ctrl+1)' },
   { mode: 'split', label: '⫶', title: '双栏 (Ctrl+2)' },
@@ -44,6 +48,16 @@ function openSettings() {
 <template>
   <header class="titlebar">
     <div class="titlebar__left">
+      <button
+        type="button"
+        class="titlebar__sidebar-toggle"
+        :title="settings.sidebarCollapsed ? '展开目录 (Ctrl+B)' : '收起目录 (Ctrl+B)'"
+        data-testid="sidebar-toggle"
+        :aria-pressed="settings.sidebarCollapsed"
+        @click="settings.toggleSidebar"
+      >
+        {{ sidebarLabel }}
+      </button>
       <span
         class="titlebar__title"
         :class="{ 'titlebar__title--dirty': workspace.isDirty }"
@@ -159,6 +173,27 @@ function openSettings() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.titlebar__sidebar-toggle {
+  font-size: 16px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+
+.titlebar__sidebar-toggle:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.titlebar__sidebar-toggle[aria-pressed='true'] {
+  background: var(--bg-elev);
+  color: var(--accent);
 }
 
 .titlebar__title--dirty::after {
