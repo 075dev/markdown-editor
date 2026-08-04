@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { resolve } from 'node:path'
 
 // Tauri 在生产环境需要明确的 base 路径
 export default defineConfig({
@@ -30,6 +31,12 @@ export default defineConfig({
     target: 'esnext',
     minify: 'esbuild',
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        diagram: resolve(__dirname, 'diagram.html'),
+      },
+    },
   },
   test: {
     environment: 'jsdom',

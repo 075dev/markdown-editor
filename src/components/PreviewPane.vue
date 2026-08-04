@@ -45,7 +45,9 @@ watchEffect(async () => {
     if (handles.has(container)) return
     const img = container.querySelector<HTMLImageElement>('img.plantuml-diagram')
     if (!img) return
-    const handle = mountPanzoomToolbar(container, img)
+    // plantumlRehype 把源码挂在 data-plantuml-source 上
+    const source = container.dataset.plantumlSource ?? img.dataset.plantumlSource ?? ''
+    const handle = mountPanzoomToolbar(container, img, { plantumlSource: source })
     handles.set(container, handle)
   })
 })
@@ -246,6 +248,11 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 .plantuml-panzoom-toolbar__btn--zoom-reset {
   min-width: 56px;
   font-variant-numeric: tabular-nums;
+}
+
+.plantuml-panzoom-toolbar__btn--open-window {
+  font-size: 14px;
+  color: var(--accent);
 }
 
 .plantuml-panzoom-toolbar__hint {

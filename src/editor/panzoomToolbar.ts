@@ -1,14 +1,14 @@
 import panzoomFactory, { type PanZoomInstance } from 'panzoom'
+import { canOpenInWindow, openDiagramWindow } from '@/services/diagramWindow'
 
-// panzoom 9.x 在 ESM 下通过 default 导出；tsx 提示
-// panzoom 是个函数对象，typeof 上既有 default 又有自调用。
+// panzoom 9.x 在 ESM 下通过 default 导出
 const panzoom = (panzoomFactory as unknown as { default?: typeof panzoomFactory }).default
   ?? panzoomFactory
 
 /**
  * Pan/zoom 工具栏封装：
  *   - 把 panzoom 实例挂到目标 <img> 上
- *   - 在容器右下角插入工具栏（缩小 / 重置 / 放大 + 比例显示）
+ *   - 在容器右下角插入工具栏（缩小 / 重置 / 放大 + 比例显示 + "在新窗口打开"）
  *   - Ctrl+滚轮缩放、双击重置
  *
  * 不依赖 Vue：返回 handle，由调用方持有并负责 dispose。
@@ -25,6 +25,8 @@ export interface PanzoomOptions {
   dblClickReset?: boolean
   /** 工具栏是否始终显示，默认 false（悬停显示） */
   toolbarAlwaysVisible?: boolean
+  /** PlantUML 源码（开启"在新窗口打开"时需要传给后端） */
+  plantumlSource?: string
 }
 
 export interface PanzoomHandle {
@@ -36,11 +38,13 @@ export interface PanzoomHandle {
   zoomOut(): void
   /** 重置到 100% */
   reset(): void
+  /** 在新窗口中打开（Tauri 环境） */
+  openInWindow(): Promise<boolean>
   /** 销毁实例、移除 DOM、解除事件 */
   dispose(): void
 }
 
-const DEFAULT_OPTS: Required<PanzoomOptions> = {
+const DEFAULT_OPTS: Required<Omit<PanzoomOptions, 'plantumlSource'>> = {
   minZoom: 0.1,
   maxZoom: 10,
   wheelZoom: true,
@@ -50,9 +54,6 @@ const DEFAULT_OPTS: Required<PanzoomOptions> = {
 
 /**
  * 给一个 .plantuml-container 容器挂 panzoom 实例与浮动工具栏。
- * @param container  PlantUML rehype 插件生成的 <div class="plantuml-container">
- * @param img        容器内的 <img class="plantuml-diagram">
- * @param options    行为开关
  */
 export function mountPanzoomToolbar(
   container: HTMLElement,
@@ -72,15 +73,26 @@ export function mountPanzoomToolbar(
   const btnReset = createButton('zoom-reset', '重置缩放', '100%')
   const btnResetSpan = btnReset.querySelector('[data-testid="zoom-reset-label"]') as HTMLElement
   const btnIn = createButton('zoom-in', '放大', '+')
+
+  toolbar.append(btnOut, btnReset, btnIn)
+
+  // 2) 仅 Tauri 环境渲染"在新窗口打开"按钮
+  let btnOpenWindow: HTMLButtonElement | null = null
+  if (canOpenInWindow()) {
+    btnOpenWindow = createButton('open-window', '在新窗口打开', '⧉')
+    btnOpenWindow.classList.add('plantuml-panzoom-toolbar__btn--open-window')
+    toolbar.appendChild(btnOpenWindow)
+  }
+
   const hint = document.createElement('span')
   hint.className = 'plantuml-panzoom-toolbar__hint'
   hint.textContent = 'Ctrl+滚轮 / 双击重置'
+  toolbar.appendChild(hint)
 
-  toolbar.append(btnOut, btnReset, btnIn, hint)
   if (opts.toolbarAlwaysVisible) toolbar.dataset.alwaysVisible = '1'
   container.appendChild(toolbar)
 
-  // 2) 把 panzoom 挂到 <img> 上
+  // 3) 把 panzoom 挂到 <img> 上
   const instance: PanZoomInstance = panzoom(img, {
     minZoom: opts.minZoom,
     maxZoom: opts.maxZoom,
@@ -129,9 +141,21 @@ export function mountPanzoomToolbar(
     updateLabel()
   }
 
+  async function openInWindow(): Promise<boolean> {
+    if (!canOpenInWindow() || !img.src) return false
+    return openDiagramWindow({
+      url: img.src,
+      title: `UML 图 — ${img.alt?.slice(0, 40) || 'PlantUML'}`,
+      source: opts.plantumlSource,
+    })
+  }
+
   btnOut.addEventListener('click', zoomOut)
   btnIn.addEventListener('click', zoomIn)
   btnReset.addEventListener('click', reset)
+  btnOpenWindow?.addEventListener('click', () => {
+    void openInWindow()
+  })
 
   // zoom 事件同步比例
   instance.on('zoom', () => updateLabel())
@@ -151,11 +175,15 @@ export function mountPanzoomToolbar(
     zoomIn,
     zoomOut,
     reset,
+    openInWindow,
     dispose() {
       instance.dispose()
       btnOut.removeEventListener('click', zoomOut)
       btnIn.removeEventListener('click', zoomIn)
       btnReset.removeEventListener('click', reset)
+      btnOpenWindow?.removeEventListener('click', () => {
+        void openInWindow()
+      })
       img.removeEventListener('dblclick', onDblClick)
       toolbar.remove()
     },

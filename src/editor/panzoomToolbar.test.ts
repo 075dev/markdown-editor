@@ -110,4 +110,23 @@ describe('mountPanzoomToolbar', () => {
     // 双击不应触发 reset
     expect(handle.getScale()).toBeGreaterThanOrEqual(1)
   })
+
+  it('exposes openInWindow on handle', () => {
+    const { container, img } = makePlantumlDom()
+    const handle = mountPanzoomToolbar(container, img, {
+      plantumlSource: '@startuml\nA->B\n@enduml',
+    })
+
+    // openInWindow 永远存在，即使环境不支持 Tauri；返回 boolean 表示成功
+    expect(typeof handle.openInWindow).toBe('function')
+  })
+
+  it('accepts plantumlSource option without throwing', () => {
+    const { container, img } = makePlantumlDom()
+    expect(() =>
+      mountPanzoomToolbar(container, img, {
+        plantumlSource: '@startuml\n@enduml',
+      }),
+    ).not.toThrow()
+  })
 })
