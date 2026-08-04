@@ -132,6 +132,41 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   padding: 0;
 }
 
+/* Shiki 双主题：默认显示 light，dark 模式下显示 dark。 */
+.markdown-body pre code span {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body pre code span {
+    color: var(--shiki-dark);
+  }
+}
+
+/* PlantUML 自写高亮：关键字、指令、箭头、注释。 */
+.markdown-body .hl-keyword {
+  color: #d73a49;
+  font-weight: 600;
+}
+.markdown-body .hl-directive {
+  color: #6f42c1;
+  font-weight: 600;
+}
+.markdown-body .hl-arrow {
+  color: #005cc5;
+}
+.markdown-body .hl-comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body .hl-keyword { color: #ff7b72; }
+  .markdown-body .hl-directive { color: #d2a8ff; }
+  .markdown-body .hl-arrow { color: #79c0ff; }
+  .markdown-body .hl-comment { color: #8b949e; }
+}
+
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   margin: 0.8em 0;

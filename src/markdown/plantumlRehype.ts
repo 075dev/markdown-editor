@@ -83,7 +83,11 @@ function buildImgNode(url: string, source: string, alt: string, className: strin
   }
 }
 
-function buildFallbackPre(source: string, className: string): Element {
+function buildFallbackPre(
+  source: string,
+  className: string,
+  preservedChildren?: ElementContent[],
+): Element {
   return {
     type: 'element',
     tagName: 'pre',
@@ -99,7 +103,9 @@ function buildFallbackPre(source: string, className: string): Element {
         properties: {
           className: ['language-plantuml'],
         } as Properties,
-        children: [{ type: 'text', value: source }],
+        // 如果上游 highlight 已经给 code 注入了 hl-* spans，
+        // 保留它们以便降级时仍能看到高亮；否则用纯文本。
+        children: preservedChildren ?? [{ type: 'text', value: source }],
       },
     ],
   }
@@ -133,7 +139,8 @@ export const plantumlRehype: Plugin<[PlantumlOptions], Root, Root> = (options = 
       const url = buildImageUrl(source, opts)
       const alt = `PlantUML diagram (${source.split('\n')[0]?.slice(0, 60) || 'diagram'})`
       const img = buildImgNode(url, source, alt, opts.className)
-      const fallback = buildFallbackPre(source, opts.className)
+      // 保留 code 节点的 children（可能已被 plantumlHighlight 注入了 hl-* spans）
+      const fallback = buildFallbackPre(source, opts.className, codeChild.children)
 
       const replacement: Element = {
         type: 'element',
