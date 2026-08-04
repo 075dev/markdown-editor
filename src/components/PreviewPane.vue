@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, nextTick, ref, watchEffect } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { renderMarkdown } from '@/markdown/pipeline'
 
 const workspace = useWorkspaceStore()
 const html = ref<string>('')
+const bodyRef = ref<HTMLElement | null>(null)
 
 watchEffect(async () => {
   const tab = workspace.activeTab
@@ -13,6 +14,27 @@ watchEffect(async () => {
     return
   }
   html.value = await renderMarkdown(tab.content)
+
+  // 渲染完后给 PlantUML <img> 挂上失败降级处理：
+  // onerror 时把隐藏的 <pre class="plantuml-fallback"> 切到可见。
+  await nextTick()
+  const root = bodyRef.value
+  if (!root) return
+  const imgs = root.querySelectorAll<HTMLImageElement>('img.plantuml-diagram')
+  imgs.forEach((img) => {
+    if (img.dataset.plantumlBound === '1') return
+    img.dataset.plantumlBound = '1'
+    img.addEventListener('error', () => {
+      const container = img.parentElement
+      if (!container) return
+      const fallback = container.querySelector<HTMLElement>('pre.plantuml-fallback')
+      if (fallback) {
+        fallback.hidden = false
+        img.style.display = 'none'
+        container.dataset.plantumlState = 'fallback'
+      }
+    })
+  })
 })
 
 const fileName = computed(() => workspace.activeTab?.name ?? '')
@@ -24,6 +46,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
       <span class="preview-pane__title">{{ fileName }} 预览</span>
     </header>
     <article
+      ref="bodyRef"
       class="preview-pane__body markdown-body"
       v-html="html"
       data-testid="preview-body"
@@ -120,5 +143,29 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   border: none;
   border-top: 1px solid var(--border);
   margin: 1.5em 0;
+}
+
+/* PlantUML 容器：图默认显示，源码降级块默认隐藏 */
+.markdown-body .plantuml-container {
+  margin: 1em 0;
+  padding: 12px;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.markdown-body .plantuml-diagram {
+  display: inline-block;
+  max-width: 100%;
+  background: #ffffff; /* PlantUML 默认输出浅色背景，dark mode 下也保持可读 */
+}
+
+.markdown-body .plantuml-fallback {
+  display: none;
+  text-align: left;
+}
+
+.markdown-body .plantuml-container[data-plantuml-state='fallback'] .plantuml-fallback {
+  display: block;
 }
 </style>
