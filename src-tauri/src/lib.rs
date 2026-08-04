@@ -1,9 +1,8 @@
 // Tauri 2：`get_webview_window` 由 `tauri::Manager` 提供，编译期会用到。
-#[allow(unused_imports)]
 use tauri::Manager;
 use tauri::{AppHandle, Emitter, WebviewUrl, WebviewWindowBuilder};
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -16,11 +15,41 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|_app| {
+        .setup(|app| {
+            // 把应用图标显式设到主窗口上。
+            // Windows 任务栏图标优先读主窗口的窗口图标（WM_SETICON），而不是
+            // EXE 文件内嵌资源 —— 后者只用于资源管理器。
+            // 设置后任务栏会立刻使用新图标。
+            //
+            // 路径解析：
+            //   debug: `<tauri_root>/src-tauri/target/debug/icon.ico`
+            //   release: `<tauri_root>/src-tauri/target/release/icon.ico`
+            // 我们用 `tauri::utils::platform::resource_dir()` 拿应用资源目录，
+            // 然后到 `icons/icon.ico`。
+            if let Some(window) = app.get_webview_window("main") {
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
+                {
+                    if let Some(icon_path) = resolve_window_icon_path(app.handle()) {
+                        match tauri::image::Image::from_path(&icon_path) {
+                            Ok(img) => {
+                                if let Err(e) = window.set_icon(img) {
+                                    eprintln!("[icon] set_icon failed: {e}");
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("[icon] failed to load {icon_path:?}: {e}");
+                            }
+                        }
+                    } else {
+                        eprintln!("[icon] no icon.ico found in any candidate path");
+                    }
+                }
+            }
+
             #[cfg(debug_assertions)]
             {
                 // 仅在 dev 构建中尝试打开 DevTools；release 构建跳过避免额外依赖。
-                if let Some(window) = _app.get_webview_window("main") {
+                if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();
                 }
             }
@@ -35,6 +64,38 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 解析窗口图标所在的路径。优先级：
+///   1) 与 EXE 同目录的 `icon.ico`（dev/release 都会有这个文件；
+///      Tauri 2 的 `cargo tauri icon` 把它复制到 target/{profile}/）
+///   2) Tauri 资源目录（bundle 之后）
+///   3) 源码目录 `src-tauri/icons/icon.ico`（兜底）
+fn resolve_window_icon_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    // 1) 基于 EXE 目录
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let candidate = dir.join("icon.ico");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    // 2) Tauri 资源目录（用 AppHandle.path 拿，避免签名变化）
+    if let Ok(dir) = app.path().resource_dir() {
+        let candidate = dir.join("icons").join("icon.ico");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    // 3) 源码目录（开发期）
+    let src = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("icons")
+        .join("icon.ico");
+    if src.exists() {
+        return Some(src);
+    }
+    None
 }
 
 /// 打开一个独立的 Webview 窗口用于查看 PlantUML 图。
