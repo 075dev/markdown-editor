@@ -10,6 +10,24 @@ use notify::event::{ModifyKind, RenameMode};
 use notify::{EventKind, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
+
+/// 通知 Windows 资源管理器刷新所有图标关联。
+/// 调用 `SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL)`，
+/// 让 explorer 重新读取任务栏图标缓存。
+#[cfg(target_os = "windows")]
+fn refresh_windows_shell_icons() {
+    unsafe {
+        SHChangeNotify(
+            SHCNE_ASSOCCHANGED.try_into().unwrap(),
+            SHCNF_IDLIST.try_into().unwrap(),
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -29,19 +47,48 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(any(target_os = "windows", target_os = "linux"))]
                 {
-                    if let Some(icon_path) = resolve_window_icon_path(app.handle()) {
-                        match tauri::image::Image::from_path(&icon_path) {
-                            Ok(img) => {
-                                if let Err(e) = window.set_icon(img) {
-                                    eprintln!("[icon] set_icon failed: {e}");
+                    match resolve_window_icon_path(app.handle()) {
+                        Some(icon_path) => {
+                            eprintln!("[icon] resolved icon path: {}", icon_path.display());
+                            match tauri::image::Image::from_path(&icon_path) {
+                                Ok(img) => {
+                                    eprintln!(
+                                        "[icon] decoded {}x{} image from {}",
+                                        img.width(),
+                                        img.height(),
+                                        icon_path.display()
+                                    );
+                                    match window.set_icon(img) {
+                                        Ok(()) => {
+                                            eprintln!("[icon] window.set_icon OK — taskbar should now show this icon");
+                                            #[cfg(target_os = "windows")]
+                                            {
+                                                // Windows 任务栏图标更新到下一次
+                                                // explorer 重建图标缓存时生效。
+                                                // 主动调用 SHChangeNotify 触发：
+                                                //   SHCNE_ASSOCCHANGED = 0x08000000
+                                                // 这会要求 explorer 刷新所有图标关联。
+                                                refresh_windows_shell_icons();
+                                                eprintln!("[icon] SHChangeNotify(SHCNE_ASSOCCHANGED) sent");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("[icon] window.set_icon FAILED: {e}");
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("[icon] failed to decode {icon_path:?}: {e}");
                                 }
                             }
-                            Err(e) => {
-                                eprintln!("[icon] failed to load {icon_path:?}: {e}");
-                            }
                         }
-                    } else {
-                        eprintln!("[icon] no icon.ico found in any candidate path");
+                        None => {
+                            eprintln!("[icon] no icon.ico found in any candidate path");
+                            eprintln!(
+                                "[icon] searched: <EXE dir>/icon.ico, <tauri resource_dir>/icons/icon.ico, {}/icons/icon.ico",
+                                env!("CARGO_MANIFEST_DIR")
+                            );
+                        }
                     }
                 }
             }
