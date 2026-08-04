@@ -1,0 +1,9 @@
+# Cargo configuration for the markdown-editor crate.
+#
+# The MSVC linker on Windows emits its "creating library ..." and
+# "creating object ..." messages to stdout, which Rust's build
+# script surfaces as a `linker_messages` warning. There's no actual
+# problem, so silence it at the cargo level.
+
+[target.'cfg(windows)']
+rustflags = ["-A", "linker_messages"]

@@ -16,11 +16,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(debug_assertions)]
             {
                 // 仅在 dev 构建中尝试打开 DevTools；release 构建跳过避免额外依赖。
-                if let Some(window) = app.get_webview_window("main") {
+                if let Some(window) = _app.get_webview_window("main") {
                     window.open_devtools();
                 }
             }
