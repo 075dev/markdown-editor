@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { useSettingsStore, type ViewMode } from '@/stores/settings'
+import {
+  useSettingsStore,
+  type ViewMode,
+  SANS_FONT_LABELS,
+  MONO_FONT_LABELS,
+} from '@/stores/settings'
 
 const workspace = useWorkspaceStore()
 const settings = useSettingsStore()
@@ -23,6 +28,9 @@ const themeLabel = computed(() => {
       return '🖥 跟随系统'
   }
 })
+
+const sansLabel = computed(() => `Sans: ${SANS_FONT_LABELS[settings.sansFont]}`)
+const monoLabel = computed(() => `Mono: ${MONO_FONT_LABELS[settings.monoFont]}`)
 
 const viewButtons: Array<{ mode: ViewMode; label: string; title: string }> = [
   { mode: 'edit', label: '✎', title: '纯编辑 (Ctrl+1)' },
@@ -64,6 +72,24 @@ function setView(mode: ViewMode) {
       </div>
     </div>
     <div class="titlebar__actions">
+      <button
+        type="button"
+        @click="settings.cycleSansFont"
+        :title="`UI 字体：${sansLabel}（点击循环）`"
+        data-testid="cycle-sans-font"
+        class="titlebar__font-btn"
+      >
+        {{ sansLabel }}
+      </button>
+      <button
+        type="button"
+        @click="settings.cycleMonoFont"
+        :title="`等宽字体：${monoLabel}（点击循环）`"
+        data-testid="cycle-mono-font"
+        class="titlebar__font-btn"
+      >
+        {{ monoLabel }}
+      </button>
       <button
         type="button"
         @click="workspace.newFile"
@@ -187,5 +213,16 @@ function setView(mode: ViewMode) {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.titlebar__font-btn {
+  font-size: 12px;
+  color: var(--fg-muted);
+  min-width: 90px;
+  text-align: left;
+}
+
+.titlebar__font-btn:hover:not(:disabled) {
+  color: var(--fg);
 }
 </style>
