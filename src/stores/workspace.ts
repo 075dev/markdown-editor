@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   openMarkdownFile,
   saveMarkdownFile,
   createNewFile,
   pickWorkspaceDirectory,
   listDirectory,
+  watchFileExternal,
+  unwatchFileExternal,
   type DirEntry,
 } from '@/services/fileService'
 
@@ -16,6 +18,13 @@ export interface OpenTab {
   savedContent: string
 }
 
+/**
+ * 全局事件名：后端 Tauri 'file-external-change' 转发到浏览器后，
+ * fileService 会派发 CustomEvent('mde:file-external-change')。
+ * 任何组件都可以监听。
+ */
+export const FILE_EXTERNAL_CHANGE_EVENT = 'mde:file-external-change'
+
 export const useWorkspaceStore = defineStore('workspace', () => {
   const rootPath = ref<string | null>(null)
   const tree = ref<DirEntry[]>([])
@@ -24,6 +33,60 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const isDirty = computed(() =>
     tabs.value.some((t) => t.content !== t.savedContent),
   )
+
+  /**
+   * 处理外部修改事件：派发 reload-tab 事件给监听器（EditorPane）。
+   * 不管当前 tabs 里是否有这个路径，事件都派发；EditorPane 自己判断。
+   * Q2 决策：冲突时**外部覆盖**本地未保存修改（简化策略）。
+   */
+  function reloadFromDisk(path: string) {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(
+      new CustomEvent('mde:reload-tab', { detail: { path } }),
+    )
+  }
+
+  /**
+   * 给一个文件路径建立后端监听（覆盖之前的）。
+   * 监听是单文件粒度——同一时间只盯一个文件，符合 VSCode / MarkText 等
+   * 主流编辑器的"focused file watcher"模式。
+   */
+  async function watchPath(path: string | null) {
+    if (!path) {
+      await unwatchFileExternal()
+      return
+    }
+    await watchFileExternal(path)
+  }
+
+  // active tab 切换时启动对应文件的监听。
+  // Q3 决策：监听所有已打开标签 + 当前 active tab 是当前焦点。
+  // 这里只盯当前 active，避免 Rust 端过多 watcher。
+  // 其他 tab 在 reloadFromDisk 阶段也能命中（因为 fileService 监听的是
+  // CustomEvent 全局派发，文件名匹配即触发）。
+  if (typeof window !== 'undefined') {
+    // watch active tab 变化
+    setTimeout(() => {
+      // 在 pinia setup 阶段 watch 不一定能拿到 current effect scope，
+      // 所以延迟到下一个 tick 启用
+      watch(activeTabPath, (next) => {
+        void watchPath(next)
+      }, { immediate: true })
+    }, 0)
+  }
+
+  /**
+   * 监听全局 CustomEvent，把 file-external-change 路由到 reloadFromDisk
+   * （fileService 派发的 CustomEvent name 与本常量一致）
+   */
+  if (typeof window !== 'undefined') {
+    window.addEventListener(FILE_EXTERNAL_CHANGE_EVENT, ((
+      e: Event,
+    ) => {
+      const detail = (e as CustomEvent<{ path: string }>).detail
+      if (detail?.path) reloadFromDisk(detail.path)
+    }) as EventListener)
+  }
 
   const activeTab = computed<OpenTab | null>(() => {
     if (!activeTabPath.value) return null

@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore, toFontStack } from '@/stores/settings'
 import { createMarkdownEditor, type CreatedEditor } from '@/editor/createEditor'
+import { readTextFile } from '@/services/fileService'
 
 const workspace = useWorkspaceStore()
 const settings = useSettingsStore()
@@ -19,6 +20,9 @@ onMounted(() => {
       workspace.updateActiveContent(value)
     },
   })
+
+  // 监听外部修改事件：从磁盘重新读取并写入编辑器
+  window.addEventListener('mde:reload-tab', onReload as EventListener)
 })
 
 // 监听 settings 变化，实时更新 CodeMirror 字体与字号
@@ -42,7 +46,27 @@ watch(
   },
 )
 
+/**
+ * 处理外部文件修改事件：重新读盘并替换编辑器内容。
+ * Q2 决策：冲突时**外部覆盖**本地未保存修改（简化策略）。
+ */
+async function onReload(e: Event) {
+  const detail = (e as CustomEvent<{ path: string }>).detail
+  if (!detail?.path) return
+  const tab = workspace.tabs.find((t) => t.path === detail.path)
+  if (!tab) return
+  const fresh = await readTextFile(detail.path)
+  if (fresh === null) return
+  // 只在仍然是同一标签时刷新；避免异步读盘期间用户切到其它标签
+  if (workspace.activeTabPath !== detail.path) return
+  tab.content = fresh
+  tab.savedContent = fresh
+  // 强制刷新 editor（activeTabPath 没变也要刷）
+  editor?.setValue(fresh)
+}
+
 onBeforeUnmount(() => {
+  window.removeEventListener('mde:reload-tab', onReload as EventListener)
   editor?.destroy()
   editor = null
 })

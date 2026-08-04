@@ -16,6 +16,9 @@ watchEffect(async () => {
     html.value = ''
     return
   }
+  // 显式追踪 content 字符串，让外部 reload（同一 tab 内容变化）能触发重渲
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  tab.content
   html.value = await renderMarkdown(tab.content)
 
   await nextTick()

@@ -1,7 +1,15 @@
 // Tauri 2：`get_webview_window` 由 `tauri::Manager` 提供，编译期会用到。
 #[allow(unused_imports)]
 use tauri::Manager;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, WebviewUrl, WebviewWindowBuilder};
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Duration;
+
+use notify::event::{ModifyKind, RenameMode};
+use notify::{EventKind, RecursiveMode, Watcher};
+use once_cell::sync::Lazy;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,7 +28,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             open_diagram_window,
-            list_system_fonts
+            list_system_fonts,
+            watch_file,
+            unwatch_file,
+            read_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -137,4 +148,109 @@ fn urlencode(s: &str) -> String {
         }
     }
     out
+}
+
+/* ---------- 文件监听（外部修改自动重载） ---------- */
+
+/// 全局 watcher：持有所有活跃 watch handle，按路径去重。
+/// Mutex + Lazy<Mutex<...>> 单例。
+struct FileWatcher {
+    /// notify::RecommendedWatcher 实例（持活才有事件）
+    _watcher: notify::RecommendedWatcher,
+    /// 当前 watcher 监听的路径（用于管理）
+    _path: PathBuf,
+}
+
+static ACTIVE_WATCHER: Lazy<Mutex<Option<FileWatcher>>> = Lazy::new(|| Mutex::new(None));
+
+/// 开始监听指定文件（如果已监听同路径则忽略）。
+/// 收到事件后通过 Tauri `emit("file-external-change", { path })` 推给前端。
+/// 节流：连续事件去重到 1 秒一次。
+#[tauri::command]
+async fn watch_file(app: AppHandle, path: String) -> Result<(), String> {
+    use std::collections::HashMap;
+    use std::sync::Mutex as StdMutex;
+    use std::time::Instant;
+
+    // 简单 per-path 节流：同一路径在 1s 内的多次事件只发一次。
+    static LAST_FIRE: Lazy<StdMutex<HashMap<String, Instant>>> =
+        Lazy::new(|| StdMutex::new(HashMap::new()));
+
+    let path_buf = PathBuf::from(&path);
+    if !path_buf.exists() {
+        return Err(format!("path does not exist: {}", path));
+    }
+
+    // 已经在监听同路径就跳过
+    {
+        let guard = ACTIVE_WATCHER.lock().unwrap();
+        if let Some(w) = guard.as_ref() {
+            if w._path == path_buf {
+                return Ok(());
+            }
+        }
+    }
+
+    let app_for_cb = app.clone();
+    let path_for_cb = path.clone();
+
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        match res {
+            Ok(event) => {
+                // 只关心"内容变更"类型：Modify(Data(Content)) / Modify(Name(Rename))
+                let interesting = matches!(
+                    event.kind,
+                    EventKind::Modify(ModifyKind::Data(_))
+                        | EventKind::Modify(ModifyKind::Name(RenameMode::To))
+                        | EventKind::Create(_)
+                );
+                if !interesting {
+                    return;
+                }
+                // 1s 节流：同路径 1s 内的多次事件只 emit 一次
+                let now = Instant::now();
+                let mut last = LAST_FIRE.lock().unwrap();
+                if let Some(prev) = last.get(&path_for_cb) {
+                    if now.duration_since(*prev) < Duration::from_millis(1000) {
+                        return;
+                    }
+                }
+                last.insert(path_for_cb.clone(), now);
+
+                // emit 给前端；前端监听 file-external-change 事件
+                let _ = app_for_cb.emit(
+                    "file-external-change",
+                    serde_json::json!({ "path": path_for_cb }),
+                );
+            }
+            Err(_e) => {
+                // 通知错误通常意味着文件被删/重命名，忽略
+            }
+        }
+    })
+    .map_err(|e| format!("failed to create watcher: {e}"))?;
+
+    watcher
+        .watch(&path_buf, RecursiveMode::NonRecursive)
+        .map_err(|e| format!("failed to watch {path}: {e}"))?;
+
+    let mut guard = ACTIVE_WATCHER.lock().unwrap();
+    *guard = Some(FileWatcher {
+        _watcher: watcher,
+        _path: path_buf,
+    });
+    Ok(())
+}
+
+/// 停止监听（关闭当前 watcher）。前端在 active tab 切走时可调用。
+#[tauri::command]
+fn unwatch_file() {
+    let mut guard = ACTIVE_WATCHER.lock().unwrap();
+    *guard = None;
+}
+
+/// 重新读取文件内容（用于外部修改事件触发后的实际重载）。
+#[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("read failed: {e}"))
 }

@@ -177,3 +177,73 @@ export async function pickWorkspaceDirectory(): Promise<string | null> {
 export async function listDirectory(path: string): Promise<DirEntry[]> {
   return isTauri() ? tauriListDir(path) : []
 }
+
+/* ---------- 文件监听（外部修改自动重载） ---------- */
+
+import type { UnlistenFn } from '@tauri-apps/api/event'
+
+/**
+ * 监听一个文件的外部修改事件。
+ * Tauri 模式下通过后端 notify crate 监听文件系统，
+ * 收到事件后通过 'file-external-change' 事件推给前端。
+ *
+ * Web 模式下不存在跨进程文件监听，降级为不可用。
+ */
+export async function watchFileExternal(path: string): Promise<UnlistenFn | null> {
+  if (!isTauri()) return null
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const { listen } = await import('@tauri-apps/api/event')
+    await invoke('watch_file', { path })
+    const unlisten = await listen<{ path: string }>(
+      'file-external-change',
+      (event) => {
+        if (event.payload?.path === path) {
+          window.dispatchEvent(
+            new CustomEvent('mde:file-external-change', { detail: { path } }),
+          )
+        }
+      },
+    )
+    return unlisten
+  } catch (err) {
+    console.warn('[fileService] watchFileExternal failed:', err)
+    return null
+  }
+}
+
+export async function unwatchFileExternal(): Promise<void> {
+  if (!isTauri()) return
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('unwatch_file')
+  } catch (err) {
+    console.warn('[fileService] unwatchFileExternal failed:', err)
+  }
+}
+
+/** 重新读取文件内容（用于外部修改事件触发后的实际重载） */
+export async function readTextFile(path: string): Promise<string | null> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const content = await invoke<string>('read_file', { path })
+      return content
+    } catch (err) {
+      console.warn('[fileService] readTextFile (tauri) failed:', err)
+      return null
+    }
+  }
+  // Web 模式：File System Access API 可以拿到已授权文件的 handle
+  try {
+    // @ts-expect-error getFileByPath 不是标准 API（仅 Chromium 实验）
+    if (typeof window.getFileByPath === 'function') {
+      // @ts-expect-error
+      const file = await window.getFileByPath(path)
+      return await file.text()
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
