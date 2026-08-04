@@ -1,5 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MarkDownEditor favicon (简化版，适配 16×16 浏览器 tab 图标)
+  与 src-tauri/app-icon.svg 设计语言一致
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563eb"/>
-  <path d="M14 20h6v18h12v6H14z" fill="#fff"/>
-  <path d="M36 20h6l8 24h-6l-1.4-4H43.4L42 44h-6z" fill="#fff"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e40af"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <rect x="14" y="16" width="32" height="40" rx="3" fill="#ffffff"/>
+  <rect x="18" y="22" width="14" height="3" rx="1" fill="#1e40af"/>
+  <circle cx="20" cy="32" r="1.5" fill="#4f46e5"/>
+  <rect x="23" y="31" width="18" height="2" rx="1" fill="#cbd5e1"/>
+  <circle cx="20" cy="38" r="1.5" fill="#4f46e5"/>
+  <rect x="23" y="37" width="15" height="2" rx="1" fill="#cbd5e1"/>
+  <rect x="18" y="44" width="22" height="2" rx="1" fill="#e2e8f0"/>
+  <rect x="18" y="48" width="18" height="2" rx="1" fill="#e2e8f0"/>
+  <!-- 钢笔 -->
+  <g transform="translate(38 14) rotate(38)">
+    <rect x="0" y="0" width="20" height="4" rx="1" fill="#fbbf24"/>
+    <path d="M 20 0 L 26 2 L 20 4 Z" fill="#1e293b"/>
+  </g>
 </svg>
