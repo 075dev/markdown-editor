@@ -18,21 +18,15 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![open_diagram_window])
+        .invoke_handler(tauri::generate_handler![
+            open_diagram_window,
+            list_system_fonts
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 /// 打开一个独立的 Webview 窗口用于查看 PlantUML 图。
-///
-/// 前端传入：
-///   - url: PlantUML 渲染服务的完整 URL（必填）
-///   - title: 窗口标题（默认 "UML 图"）
-///   - source: PlantUML 原始源码（用于独立窗口显示复制按钮）
-///   - width / height: 窗口初始尺寸
-///
-/// 窗口加载的是静态 `diagram.html`（前端打包产物），URL 通过 query string 传递。
-/// 静态页面通过读 `window.location.search` 解析参数，再调植物 panzoom 实例。
 #[tauri::command]
 async fn open_diagram_window(
     app: tauri::AppHandle,
@@ -47,7 +41,6 @@ async fn open_diagram_window(
     let t = title.unwrap_or_else(|| "UML 图".to_string());
     let s = source.unwrap_or_default();
 
-    // URL-encode 参数，避免源码里的换行 / 特殊字符破坏 query string
     let encoded_url = urlencode(&url);
     let encoded_source = urlencode(&s);
     let page = format!(
@@ -57,7 +50,6 @@ async fn open_diagram_window(
         encoded_source
     );
 
-    // 唯一标签：避免重复打开同一窗口；用户想开多个相同图就每次手动点
     let label = format!(
         "diagram-{}",
         std::time::SystemTime::now()
@@ -79,13 +71,65 @@ async fn open_diagram_window(
     Ok(())
 }
 
-/// 极简的 URL-encode：把字符串放进 query string 安全传输。
-/// 不依赖 urlencoding crate，避免新增 Cargo 依赖。
+/// 返回系统已安装的全部字体家族名（去重、排序）。
+///
+/// system-fonts 0.1.x 的 `find_for_system_locale` 只暴露 Sans / Serif，
+/// 不区分 mono。需求是"用户手动从系统字体里挑"——所以我们直接返回全家族名，
+/// 由前端根据 `WEB_FALLBACK_FONTS.mono`（常见等宽关键字）做交集，
+/// 把"看起来像等宽"的家族名放进 mono 下拉。
+///
+/// 返回结构：
+///   - `all`: 全部已安装家族名（前端用这个 + mono 关键字列表判断 mono）
+///   - `sans`: system-fonts `Sans` 风格预解析（Win/macOS/Linux 上字体优先级合理）
+///
+/// Web 模式（前端 fallback）已经覆盖了 WEB_FALLBACK_FONTS，此命令仅在 Tauri 桌面调用。
+#[tauri::command]
+fn list_system_fonts() -> FontList {
+    use std::collections::BTreeSet;
+    use system_fonts::{find_for_system_locale, FontStyle};
+
+    let mut all: BTreeSet<String> = BTreeSet::new();
+
+    // Sans preset：覆盖主流 UI 字体
+    let (_locale, _region, sans_fonts) = find_for_system_locale(FontStyle::Sans);
+    for f in sans_fonts {
+        all.insert(f.family);
+    }
+
+    // Serif preset：补充中文 / 日文 / 韩文等区域字体
+    let (_locale2, _region2, serif_fonts) = find_for_system_locale(FontStyle::Serif);
+    for f in serif_fonts {
+        all.insert(f.family);
+    }
+
+    // 也把系统上"非预设"但已安装的字体家族拉进来；
+    // find_for_system_locale 内部其实已经扫了所有 fontdb，所以 all 已是最全集。
+
+    FontList {
+        all: all.into_iter().collect(),
+        sans: Vec::new(),
+        mono: Vec::new(),
+    }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FontList {
+    /// 全部已安装字体家族名（前端用关键字匹配拆分 sans / mono）
+    all: Vec<String>,
+    /// 预解析 sans（保留字段以便未来直接用）
+    #[allow(dead_code)]
+    sans: Vec<String>,
+    /// 预解析 mono（保留字段以便未来直接用）
+    #[allow(dead_code)]
+    mono: Vec<String>,
+}
+
+/// 极简 URL-encode（与 open_diagram_window 共享）。
 fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            // unreserved 字符：字母数字 + - _ . ~
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(b as char)
             }

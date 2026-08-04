@@ -1,20 +1,26 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import {
-  SANS_FONT_LABELS,
-  MONO_FONT_LABELS,
   FONT_SIZE_MIN,
   FONT_SIZE_MAX,
   FONT_SIZE_DEFAULT,
   type Theme,
   type ViewMode,
-  type SansFont,
-  type MonoFont,
 } from '@/stores/settings'
+import { listSystemFonts, clearFontCache, type FontList } from '@/services/fontService'
 
 const router = useRouter()
 const settings = useSettingsStore()
+
+const fontList = ref<FontList>({ sans: [], mono: [] })
+const loading = ref(true)
+const refreshError = ref<string | null>(null)
+const customSansInput = ref('')
+const customMonoInput = ref('')
+const customSansOpen = ref(false)
+const customMonoOpen = ref(false)
 
 const themes: Array<{ value: Theme; label: string }> = [
   { value: 'system', label: '跟随系统' },
@@ -28,22 +34,75 @@ const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
   { value: 'preview', label: '纯预览', hint: '只显示预览' },
 ]
 
-const sansFonts: Array<{ value: SansFont; label: string }> = (
-  Object.entries(SANS_FONT_LABELS) as Array<[SansFont, string]>
-).map(([value, label]) => ({ value, label }))
+async function refreshFonts() {
+  loading.value = true
+  refreshError.value = null
+  try {
+    fontList.value = await listSystemFonts()
+  } catch (err) {
+    refreshError.value = (err as Error).message ?? String(err)
+  } finally {
+    loading.value = false
+  }
+}
 
-const monoFonts: Array<{ value: MonoFont; label: string }> = (
-  Object.entries(MONO_FONT_LABELS) as Array<[MonoFont, string]>
-).map(([value, label]) => ({ value, label }))
+function reloadFonts() {
+  clearFontCache()
+  void refreshFonts()
+}
 
 function setFontSize(value: string | number) {
   const n = typeof value === 'string' ? parseInt(value, 10) : value
   if (Number.isFinite(n)) settings.setFontSize(n)
 }
 
+function onSansSelect(e: Event) {
+  const v = (e.target as HTMLSelectElement).value
+  if (v === '__custom__') {
+    customSansOpen.value = true
+    return
+  }
+  settings.setSansFont(v)
+}
+
+function onMonoSelect(e: Event) {
+  const v = (e.target as HTMLSelectElement).value
+  if (v === '__custom__') {
+    customMonoOpen.value = true
+    return
+  }
+  settings.setMonoFont(v)
+}
+
+function submitCustomSans() {
+  const v = customSansInput.value.trim()
+  if (v) {
+    settings.setSansFont(v)
+    customSansInput.value = ''
+    customSansOpen.value = false
+  }
+}
+
+function submitCustomMono() {
+  const v = customMonoInput.value.trim()
+  if (v) {
+    settings.setMonoFont(v)
+    customMonoInput.value = ''
+    customMonoOpen.value = false
+  }
+}
+
+function isCurrentInList(value: string, list: string[]): boolean {
+  return list.includes(value)
+}
+
 function goHome() {
   void router.push({ name: 'home' })
 }
+
+onMounted(() => {
+  void refreshFonts()
+})
 </script>
 
 <template>
@@ -128,41 +187,99 @@ function goHome() {
         <div class="settings__row">
           <div class="settings__row-label">
             <span class="settings__row-name">UI 字体</span>
-            <span class="settings__row-hint">菜单、按钮、侧栏等界面文字</span>
+            <span class="settings__row-hint">
+              当前：<code class="settings__current">{{ settings.sansFont }}</code>
+            </span>
           </div>
-          <div class="settings__row-control" role="radiogroup" aria-label="UI 字体">
-            <button
-              v-for="f in sansFonts"
-              :key="f.value"
-              type="button"
-              class="settings__chip"
-              :class="{ 'is-active': settings.sansFont === f.value }"
-              :aria-pressed="settings.sansFont === f.value"
-              :data-testid="`sans-${f.value}`"
-              @click="settings.setSansFont(f.value)"
+          <div class="settings__row-control">
+            <select
+              :value="isCurrentInList(settings.sansFont, fontList.sans) ? settings.sansFont : '__custom__'"
+              data-testid="sans-font-select"
+              @change="onSansSelect"
+              :disabled="loading"
+              class="settings__select"
             >
-              {{ f.label }}
+              <option v-if="loading" value="">加载中…</option>
+              <template v-else>
+                <option
+                  v-for="f in fontList.sans"
+                  :key="`sans-${f}`"
+                  :value="f"
+                >{{ f }}</option>
+                <option value="__custom__">自定义…</option>
+              </template>
+            </select>
+            <button
+              type="button"
+              class="settings__mini"
+              data-testid="reload-fonts"
+              @click="reloadFonts"
+              title="重新读取系统字体列表"
+            >
+              ↻
             </button>
           </div>
+          <div v-if="customSansOpen" class="settings__custom">
+            <input
+              v-model="customSansInput"
+              type="text"
+              placeholder="例如：Avenir, Helvetica Neue"
+              data-testid="custom-sans-input"
+              @keydown.enter="submitCustomSans"
+            />
+            <button
+              type="button"
+              class="settings__mini"
+              data-testid="custom-sans-submit"
+              @click="submitCustomSans"
+            >
+              确定
+            </button>
+          </div>
+          <p v-if="refreshError" class="settings__error">{{ refreshError }}</p>
         </div>
 
         <div class="settings__row">
           <div class="settings__row-label">
             <span class="settings__row-name">等宽字体</span>
-            <span class="settings__row-hint">编辑器、代码块、PlantUML 源码</span>
+            <span class="settings__row-hint">
+              当前：<code class="settings__current">{{ settings.monoFont }}</code>
+            </span>
           </div>
-          <div class="settings__row-control" role="radiogroup" aria-label="等宽字体">
-            <button
-              v-for="f in monoFonts"
-              :key="f.value"
-              type="button"
-              class="settings__chip"
-              :class="{ 'is-active': settings.monoFont === f.value }"
-              :aria-pressed="settings.monoFont === f.value"
-              :data-testid="`mono-${f.value}`"
-              @click="settings.setMonoFont(f.value)"
+          <div class="settings__row-control">
+            <select
+              :value="isCurrentInList(settings.monoFont, fontList.mono) ? settings.monoFont : '__custom__'"
+              data-testid="mono-font-select"
+              @change="onMonoSelect"
+              :disabled="loading"
+              class="settings__select"
             >
-              {{ f.label }}
+              <option v-if="loading" value="">加载中…</option>
+              <template v-else>
+                <option
+                  v-for="f in fontList.mono"
+                  :key="`mono-${f}`"
+                  :value="f"
+                >{{ f }}</option>
+                <option value="__custom__">自定义…</option>
+              </template>
+            </select>
+          </div>
+          <div v-if="customMonoOpen" class="settings__custom">
+            <input
+              v-model="customMonoInput"
+              type="text"
+              placeholder="例如：Cascadia Code, JetBrains Mono"
+              data-testid="custom-mono-input"
+              @keydown.enter="submitCustomMono"
+            />
+            <button
+              type="button"
+              class="settings__mini"
+              data-testid="custom-mono-submit"
+              @click="submitCustomMono"
+            >
+              确定
             </button>
           </div>
         </div>
@@ -276,7 +393,7 @@ function goHome() {
   grid-template-columns: 200px 1fr;
   gap: 16px;
   padding: 14px 0;
-  align-items: center;
+  align-items: start;
 }
 
 .settings__row-label {
@@ -292,6 +409,14 @@ function goHome() {
 .settings__row-hint {
   font-size: 12px;
   color: var(--fg-muted);
+}
+
+.settings__current {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--code-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .settings__row-control {
@@ -337,10 +462,51 @@ function goHome() {
   color: var(--fg);
 }
 
+.settings__select {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.settings__select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings__custom {
+  grid-column: 2;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings__custom input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+
 .settings__row-control input[type='range'] {
   flex: 1;
   min-width: 200px;
   accent-color: var(--accent);
+}
+
+.settings__error {
+  grid-column: 2;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--danger);
 }
 
 .settings__footer {
