@@ -108,10 +108,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
    * 不管当前 tabs 里是否有这个路径，事件都派发；EditorPane 自己判断。
    * Q2 决策：冲突时**外部覆盖**本地未保存修改（简化策略）。
    */
-  function reloadFromDisk(path: string) {
+  function reloadFromDisk(path: string, content?: string) {
     if (typeof window === 'undefined') return
     window.dispatchEvent(
-      new CustomEvent('mde:reload-tab', { detail: { path } }),
+      // content:store 已读盘时携带,EditorPane 免二次读盘(修复 F4)
+      new CustomEvent('mde:reload-tab', { detail: { path, content } }),
     )
   }
 
@@ -169,15 +170,35 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
   /**
    * Conflict 决策「用磁盘版本」:丢弃未保存修改,重载磁盘内容 -> Clean。
-   * 复用 mde:reload-tab 链路让 EditorPane 读盘刷新。
+   * 修复 F4(评审 round 1):不再先置 clean 再异步重载——先读盘,成功且
+   * 确认仍是同一标签(防读盘期间切换/关闭竞态)后才落 Clean;读盘失败
+   * 保持 Conflict 并写 error 通知,杜绝「假 clean」。仍按 path 决策(F3)。
    */
-  function resolveConflictUseDisk(path?: string): boolean {
-    // 修复 F3:支持按 path 决策(冲突横幅逐标签渲染,按钮指向各自标签);缺省仍作用于活动标签
+  async function resolveConflictUseDisk(path?: string): Promise<boolean> {
     const tab = path ? tabs.value.find((t) => t.path === path) : activeTab.value
-    if (!tab || tab.status !== 'conflict') return false
-    tab.status = 'clean'
-    tab.conflictKind = undefined
-    reloadFromDisk(tab.path)
+    if (!tab || tab.status !== 'conflict' || !tab.path) return false
+    const targetPath = tab.path
+    let fresh: string | null = null
+    try {
+      fresh = await readTextFileRaw(targetPath)
+    } catch (err) {
+      const qe = normalizeError(err)
+      saveNotice.value = { level: 'error', message: `重载失败:${qe.message},已保持冲突状态` }
+      return false
+    }
+    if (fresh === null) {
+      saveNotice.value = { level: 'error', message: '重载失败:无法读取磁盘文件,已保持冲突状态' }
+      return false
+    }
+    // 竞态防护:读盘期间标签被关闭或已由其他路径解决(不再 conflict)则放弃
+    const current = tabs.value.find((t) => t.path === targetPath)
+    if (!current || current.status !== 'conflict') return false
+    current.content = fresh
+    current.savedContent = fresh
+    current.status = 'clean'
+    current.conflictKind = undefined
+    // 携带已读内容通知编辑器刷新,避免二次读盘
+    reloadFromDisk(targetPath, fresh)
     return true
   }
 

@@ -86,20 +86,23 @@ watch(
  * Q2 决策：冲突时**外部覆盖**本地未保存修改（简化策略）。
  */
 async function onReload(e: Event) {
-  const detail = (e as CustomEvent<{ path: string }>).detail
+  const detail = (e as CustomEvent<{ path: string; content?: string }>).detail
   if (!detail?.path) return
   const tab = workspace.tabs.find((t) => t.path === detail.path)
   if (!tab) return
-  let fresh: string | null
-  try {
-    fresh = await readTextFile(detail.path)
-  } catch (err) {
+  // 修复 F4:冲突决策「用磁盘版本」链路由 store 读盘后携带内容,直接采用,免二次读盘
+  let fresh: string | null = detail.content ?? null
+  if (fresh === null) {
+    try {
+      fresh = await readTextFile(detail.path)
+    } catch (err) {
     // 读盘失败(QlError 等)静默处理:不弹窗、不上抛(避免 unhandled rejection),
     // 编辑器内容保持不变,仅状态条短暂提示(交接备注 #3)
-    showReloadError(`文件重载失败:${describeError(err)}`)
-    return
+      showReloadError(`文件重载失败:${describeError(err)}`)
+      return
+    }
+    if (fresh === null) return
   }
-  if (fresh === null) return
   // 只在仍然是同一标签时刷新；避免异步读盘期间用户切到其它标签
   if (workspace.activeTabPath !== detail.path) return
   tab.content = fresh

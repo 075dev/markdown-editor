@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
 import { useWorkspaceStore, FILE_EXTERNAL_CHANGE_EVENT } from '@/stores/workspace'
-import { saveMarkdownFile } from '@/services/fileService'
+import { saveMarkdownFile, readTextFile } from '@/services/fileService'
 
 /**
  * 自动保存状态条(填充阶段 T2):
@@ -21,7 +21,8 @@ vi.mock('@/services/fileService', async () => {
     saveMarkdownFile: vi.fn(async (_c: string, path?: string) => ({ path: path ?? 'm.md' })),
     watchFileExternal: vi.fn(async () => null),
     unwatchFileExternal: vi.fn(async () => {}),
-    readTextFile: vi.fn(async () => null),
+    // 默认返回磁盘内容:「用磁盘版本」决策(F4)需读盘成功才置 Clean
+    readTextFile: vi.fn(async () => 'disk content'),
   }
 })
 
@@ -97,6 +98,21 @@ describe('AutoSaveBanner', () => {
     await flushPromises()
     expect(ws.tabs[0].status).toBe('clean')
     expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(false)
+  })
+
+  it('「用磁盘版本」读盘失败 → 保持冲突,横幅不消失(修复 F4 假 clean)', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/b.md', 'disk')
+    ws.updateActiveContent('mine')
+    fireExternal('/a/b.md', 'modified')
+    await flushPromises()
+    vi.mocked(readTextFile).mockRejectedValue({ code: 'FILE_READ_FAILED', message: 'locked' })
+
+    await wrapper.find('[data-testid="banner-use-disk"]').trigger('click')
+    await flushPromises()
+    expect(ws.tabs[0].status).toBe('conflict')
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(true)
+    expect(ws.saveNotice?.level).toBe('error')
   })
 
   it('saveNotice error:渲染通知条,手动关闭后消失', async () => {

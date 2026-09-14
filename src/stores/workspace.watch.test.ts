@@ -152,7 +152,7 @@ describe('workspace: conflict resolution actions', () => {
     expect(tab.content).toBe('my version')
   })
 
-  it('resolveConflictUseDisk:置 Clean 并派发 reload(EditorPane 读盘刷新)', () => {
+  it('resolveConflictUseDisk:置 Clean 并派发 reload(修复 F4 后为读盘成功后置 Clean)', async () => {
     // 共享单例 store(见文件头说明)
     ws.upsertTab('/a/b.md', 'disk version')
     ws.updateActiveContent('my version')
@@ -161,7 +161,7 @@ describe('workspace: conflict resolution actions', () => {
     expect(tab.status).toBe('conflict')
     const tracker = trackReloadEvents()
 
-    const ok = ws.resolveConflictUseDisk()
+    const ok = await ws.resolveConflictUseDisk()
 
     expect(ok).toBe(true)
     expect(tab.status).toBe('clean')
@@ -171,7 +171,7 @@ describe('workspace: conflict resolution actions', () => {
   it('非 Conflict 标签调用决策 action 返回 false', async () => {
     // 共享单例 store(见文件头说明)
     ws.upsertTab('/a/b.md', 'content')
-    expect(ws.resolveConflictUseDisk()).toBe(false)
+    expect(await ws.resolveConflictUseDisk()).toBe(false)
     expect(await ws.resolveConflictKeepMine()).toBe(false)
   })
 
@@ -239,14 +239,14 @@ describe('workspace: kind=removed 外部删除(填充阶段 T2)', () => {
     expect(tab.savedContent).toBe('my recovery version')
   })
 
-  it('modified 决策「用磁盘版本」→ Clean + conflictKind 清除 + reload 派发', () => {
+  it('modified 决策「用磁盘版本」→ Clean + conflictKind 清除 + reload 派发(修复 F4 后为读盘成功后置 Clean)', async () => {
     ws.upsertTab('/a/m.md', 'disk')
     ws.updateActiveContent('mine')
     dispatchExternalChangeKind('/a/m.md', 'modified')
     const tab = ws.tabs.find((t) => t.path === '/a/m.md')!
     expect(tab.conflictKind).toBe('modified')
     const tracker = trackReloadEvents()
-    expect(ws.resolveConflictUseDisk()).toBe(true)
+    expect(await ws.resolveConflictUseDisk()).toBe(true)
     expect(tab.status).toBe('clean')
     expect(tab.conflictKind).toBeUndefined()
     expect(tracker.fired).toEqual(['/a/m.md'])
@@ -295,5 +295,92 @@ describe('workspace: 冲突安全网独立于自动保存开关(边缘场景 9)'
     expect(tracker.fired).toEqual(['/a/off2.md'])
 
     settings.setAutoSaveEnabled(true) // 还原,避免影响后续用例
+  })
+})
+
+describe('workspace: 「用磁盘版本」真 clean 语义(修复 F4)', () => {
+  function makeConflict(path: string, disk: string, mine: string) {
+    ws.upsertTab(path, disk)
+    ws.updateActiveContent(mine)
+    dispatchExternalChange(path)
+    return ws.tabs.find((t) => t.path === path)!
+  }
+
+  it('读盘成功后才置 Clean:content/savedContent 为磁盘内容,并派发携带内容的 reload', async () => {
+    const tab = makeConflict('/a/b.md', 'disk base', 'my edit')
+    readTextFileMock.mockResolvedValue('fresh from disk')
+    const events: Array<{ path: string; content?: string }> = []
+    const handler = (e: Event) => {
+      events.push((e as CustomEvent<{ path: string; content?: string }>).detail)
+    }
+    window.addEventListener('mde:reload-tab', handler)
+
+    const ok = await ws.resolveConflictUseDisk('/a/b.md')
+
+    window.removeEventListener('mde:reload-tab', handler)
+    expect(ok).toBe(true)
+    expect(tab.status).toBe('clean')
+    expect(tab.content).toBe('fresh from disk')
+    expect(tab.savedContent).toBe('fresh from disk')
+    expect(tab.conflictKind).toBeUndefined()
+    expect(events[0]?.path).toBe('/a/b.md')
+    expect(events[0]?.content).toBe('fresh from disk')
+  })
+
+  it('读盘失败(抛 QlError)→ 保持 Conflict + error 通知,本地内容不丢', async () => {
+    const tab = makeConflict('/a/b.md', 'disk base', 'my edit')
+    readTextFileMock.mockRejectedValue({ code: 'FILE_READ_FAILED', message: 'locked' })
+
+    const ok = await ws.resolveConflictUseDisk('/a/b.md')
+
+    expect(ok).toBe(false)
+    expect(tab.status).toBe('conflict')
+    expect(tab.conflictKind).toBe('modified')
+    expect(tab.content).toBe('my edit')
+    expect(ws.saveNotice?.level).toBe('error')
+    expect(ws.saveNotice?.message).toContain('已保持冲突状态')
+  })
+
+  it('读盘返回 null → 保持 Conflict,不假 clean', async () => {
+    const tab = makeConflict('/a/b.md', 'disk base', 'my edit')
+    readTextFileMock.mockResolvedValue(null as never)
+
+    const ok = await ws.resolveConflictUseDisk('/a/b.md')
+
+    expect(ok).toBe(false)
+    expect(tab.status).toBe('conflict')
+    expect(tab.content).toBe('my edit')
+  })
+
+  it('读盘期间切换活动标签:目标标签按 path 正确置 Clean,新活动标签不受影响', async () => {
+    const tab = makeConflict('/a/b.md', 'disk base', 'my edit')
+    ws.upsertTab('/a/other.md', 'other content') // 读盘开始前切走 active
+    expect(ws.activeTabPath).toBe('/a/other.md')
+    let resolveRead!: (v: string) => void
+    readTextFileMock.mockReturnValue(new Promise<string>((res) => { resolveRead = res }))
+
+    const pending = ws.resolveConflictUseDisk('/a/b.md')
+    resolveRead('fresh from disk') // 读盘完成发生在切走之后
+    const ok = await pending
+
+    expect(ok).toBe(true)
+    expect(tab.status).toBe('clean')
+    expect(tab.content).toBe('fresh from disk')
+    expect(ws.tabs.find((t) => t.path === '/a/other.md')!.status).toBe('clean')
+    expect(ws.activeTabPath).toBe('/a/other.md')
+  })
+
+  it('读盘期间标签被关闭:返回 false,不异常、不复活标签', async () => {
+    makeConflict('/a/b.md', 'disk base', 'my edit')
+    let resolveRead!: (v: string) => void
+    readTextFileMock.mockReturnValue(new Promise<string>((res) => { resolveRead = res }))
+
+    const pending = ws.resolveConflictUseDisk('/a/b.md')
+    ws.forceCloseTab('/a/b.md')
+    resolveRead('late disk content')
+    const ok = await pending
+
+    expect(ok).toBe(false)
+    expect(ws.tabs.find((t) => t.path === '/a/b.md')).toBeUndefined()
   })
 })
