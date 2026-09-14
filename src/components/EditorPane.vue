@@ -10,6 +10,30 @@ const settings = useSettingsStore()
 const containerRef = ref<HTMLDivElement | null>(null)
 let editor: CreatedEditor | null = null
 
+/** 重载失败提示条可见时长(ms),到时自动消失(不弹窗,状态可感知) */
+const RELOAD_ERROR_VISIBLE_MS = 4000
+const reloadError = ref<string | null>(null)
+let reloadErrorTimer: ReturnType<typeof setTimeout> | null = null
+
+function showReloadError(message: string) {
+  reloadError.value = message
+  if (reloadErrorTimer !== null) clearTimeout(reloadErrorTimer)
+  reloadErrorTimer = setTimeout(() => {
+    reloadError.value = null
+    reloadErrorTimer = null
+  }, RELOAD_ERROR_VISIBLE_MS)
+}
+
+/** 从 normalizeError 产物(QlError)或任意 thrown 值提取可读 message */
+function describeError(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    const m = (err as { message: unknown }).message
+    if (typeof m === 'string' && m) return m
+  }
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
 const emit = defineEmits<{
   (e: 'ready-editor-scroll', el: HTMLElement): void
 }>()
@@ -66,7 +90,15 @@ async function onReload(e: Event) {
   if (!detail?.path) return
   const tab = workspace.tabs.find((t) => t.path === detail.path)
   if (!tab) return
-  const fresh = await readTextFile(detail.path)
+  let fresh: string | null
+  try {
+    fresh = await readTextFile(detail.path)
+  } catch (err) {
+    // 读盘失败(QlError 等)静默处理:不弹窗、不上抛(避免 unhandled rejection),
+    // 编辑器内容保持不变,仅状态条短暂提示(交接备注 #3)
+    showReloadError(`文件重载失败:${describeError(err)}`)
+    return
+  }
   if (fresh === null) return
   // 只在仍然是同一标签时刷新；避免异步读盘期间用户切到其它标签
   if (workspace.activeTabPath !== detail.path) return
@@ -78,6 +110,10 @@ async function onReload(e: Event) {
 
 onBeforeUnmount(() => {
   window.removeEventListener('mde:reload-tab', onReload as EventListener)
+  if (reloadErrorTimer !== null) {
+    clearTimeout(reloadErrorTimer)
+    reloadErrorTimer = null
+  }
   editor?.destroy()
   editor = null
 })
@@ -85,6 +121,14 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="editor-pane">
+    <div
+      v-if="reloadError"
+      class="editor-pane__error"
+      role="alert"
+      data-testid="editor-reload-error"
+    >
+      {{ reloadError }}
+    </div>
     <div ref="containerRef" class="editor-pane__host" data-testid="editor-host"></div>
   </section>
 </template>
@@ -102,5 +146,13 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.editor-pane__error {
+  flex: 0 0 auto;
+  padding: 4px 16px;
+  font-size: 12px;
+  background: var(--danger, #b91c1c);
+  color: #fff;
 }
 </style>

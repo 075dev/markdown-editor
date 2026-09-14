@@ -73,3 +73,18 @@ export function normalizeError(raw: unknown): QlError {
   }
   return { code: 'INTERNAL_ERROR', message }
 }
+
+/**
+ * 通道感知的错误码兜底(填充阶段 T1-fill):
+ * 写盘/新建等具体 IO 通道里,normalizeError 若无法从原始 message 分类
+ * (落到 INTERNAL_ERROR 兜底),按调用通道升级为更精确的 code
+ * (如写盘通道 → FILE_WRITE_FAILED),自动保存的重试判别依赖此码。
+ * 前缀/模式已显式命中的 code 保持不变。
+ * 纯函数:不依赖任何 Tauri API(宪法 C2)。
+ */
+export function withFallbackCode(err: QlError, fallback: QlErrorCode): QlError {
+  if (err.code === 'INTERNAL_ERROR') {
+    return { code: fallback, message: err.message }
+  }
+  return err
+}

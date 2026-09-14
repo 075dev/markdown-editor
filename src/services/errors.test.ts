@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeError } from '@/services/errors'
+import { normalizeError, withFallbackCode, type QlError } from '@/services/errors'
 
 describe('normalizeError', () => {
   describe('"CODE: message" 前缀解析(Rust invoke Err 格式)', () => {
@@ -83,5 +83,50 @@ describe('normalizeError', () => {
     it('带 message 属性的普通对象取 message', () => {
       expect(normalizeError({ message: 'readonly disk' }).code).toBe('FILE_WRITE_FAILED')
     })
+  })
+})
+
+describe('normalizeError:save/new 写盘通道补充(填充阶段 T1)', () => {
+  it('解析 FILE_WRITE_FAILED 前缀(自动保存重试判别依赖此码)', () => {
+    expect(normalizeError('FILE_WRITE_FAILED: Access is denied')).toEqual({
+      code: 'FILE_WRITE_FAILED',
+      message: 'Access is denied',
+    })
+  })
+
+  it('解析 WINDOW_OPEN_FAILED 前缀', () => {
+    expect(normalizeError('WINDOW_OPEN_FAILED: webview unavailable').code).toBe(
+      'WINDOW_OPEN_FAILED',
+    )
+  })
+
+  it('解析 INTERNAL_ERROR 前缀', () => {
+    expect(normalizeError('INTERNAL_ERROR: panic in backend').code).toBe('INTERNAL_ERROR')
+  })
+
+  it('盘满/只读文件系统等写盘报错(denied 变体)→ FILE_WRITE_FAILED', () => {
+    expect(normalizeError(new Error('os error 19: media is write protected')).code).toBe(
+      'INTERNAL_ERROR',
+    )
+    // 裸 syscall 文本无法分类 → INTERNAL_ERROR,由通道兜底 withFallbackCode 升级
+  })
+})
+
+describe('withFallbackCode(通道感知兜底,纯函数)', () => {
+  it('INTERNAL_ERROR 按通道升级为 fallback(如写盘 → FILE_WRITE_FAILED)', () => {
+    expect(
+      withFallbackCode({ code: 'INTERNAL_ERROR', message: 'os error 5' }, 'FILE_WRITE_FAILED'),
+    ).toEqual({ code: 'FILE_WRITE_FAILED', message: 'os error 5' })
+  })
+
+  it('已显式分类的 code 保持不变(前缀/模式命中优先)', () => {
+    const e: QlError = { code: 'FILE_NOT_FOUND', message: 'no such file' }
+    expect(withFallbackCode(e, 'FILE_WRITE_FAILED')).toBe(e)
+  })
+
+  it('message 始终保留不改写', () => {
+    const out = withFallbackCode({ code: 'INTERNAL_ERROR', message: 'x' }, 'PATH_INVALID')
+    expect(out.message).toBe('x')
+    expect(out.code).toBe('PATH_INVALID')
   })
 })
