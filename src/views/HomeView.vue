@@ -9,6 +9,7 @@ import PreviewPane from '@/components/PreviewPane.vue'
 import TitleBar from '@/components/TitleBar.vue'
 import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
 import { useEditorScrollSync } from '@/composables/useEditorScrollSync'
+import { useAutoSave } from '@/composables/useAutoSave'
 
 const router = useRouter()
 const workspace = useWorkspaceStore()
@@ -39,6 +40,13 @@ useEditorScrollSync({
   editorEl: editorScrollEl,
   previewEl: previewScrollEl,
 })
+
+/**
+ * 自动保存装配(评审 round 1 C1 修复):在应用根激活防抖写盘、
+ * 失焦保存与失败重试链;组件卸载时由 composable 的 onScopeDispose
+ * 统一清理定时器与 blur 监听。settings.autoSaveEnabled 为总开关。
+ */
+useAutoSave()
 
 /**
  * 全局快捷键：
