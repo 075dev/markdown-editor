@@ -47,12 +47,12 @@ function rawMessage(raw: unknown): string {
 /**
  * 把 Rust invoke 的 Err(String) 与 plugin-fs 抛错规范化为 QlError。
  *
- * 骨架版策略(填充阶段可替换为结构化 Err 对象):
+ * 策略(填充阶段定稿;Rust 侧结构化 Err 对象迁移见 fill-report 契约修订待办):
  *   1. "CODE: message" 前缀 → 直接映射(最可信)
  *   2. 字符串模式匹配:含 "not found"/"不存在" → FILE_NOT_FOUND;
  *      含 "denied"/"readonly"/"占用" → FILE_WRITE_FAILED;
  *      含 "invalid"/"非法" → PATH_INVALID
- *   3. 兜底 INTERNAL_ERROR
+ *   3. 兜底 INTERNAL_ERROR(写盘等具体通道再经 withFallbackCode 升级)
  * 原始 message 始终保留(前缀命中时去除前缀本身)。
  */
 export function normalizeError(raw: unknown): QlError {
