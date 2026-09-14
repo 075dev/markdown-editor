@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll, beforeEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useWorkspaceStore, FILE_EXTERNAL_CHANGE_EVENT } from '@/stores/workspace'
+import { useSettingsStore } from '@/stores/settings'
 import { readTextFile, saveMarkdownFile } from '@/services/fileService'
 
 /**
@@ -174,4 +175,125 @@ describe('workspace: conflict resolution actions', () => {
     expect(await ws.resolveConflictKeepMine()).toBe(false)
   })
 
+})
+
+function dispatchExternalChangeKind(
+  path: string,
+  kind: 'modified' | 'removed',
+) {
+  window.dispatchEvent(
+    new CustomEvent(FILE_EXTERNAL_CHANGE_EVENT, { detail: { path, kind } }),
+  )
+}
+
+describe('workspace: kind=removed 外部删除(填充阶段 T2)', () => {
+  it('Clean 标签收到 removed → 直接 Conflict,不派发 reload,内容保留', () => {
+    // 共享单例 store(见文件头说明)
+    ws.upsertTab('/a/gone.md', 'precious content')
+    const tracker = trackReloadEvents()
+
+    dispatchExternalChangeKind('/a/gone.md', 'removed')
+
+    const tab = ws.tabs.find((t) => t.path === '/a/gone.md')!
+    expect(tab.status).toBe('conflict')
+    expect(tab.conflictKind).toBe('removed')
+    expect(tab.content).toBe('precious content')
+    expect(tracker.fired).toEqual([]) // 磁盘已无内容,不走重载
+  })
+
+  it('Dirty 标签收到 removed → Conflict(removed),本地未保存内容保留', () => {
+    ws.upsertTab('/a/gone2.md', 'saved')
+    ws.updateActiveContent('my unsaved work')
+    dispatchExternalChangeKind('/a/gone2.md', 'removed')
+    const tab = ws.tabs.find((t) => t.path === '/a/gone2.md')!
+    expect(tab.status).toBe('conflict')
+    expect(tab.conflictKind).toBe('removed')
+    expect(tab.content).toBe('my unsaved work')
+  })
+
+  it('Conflict 态收到 removed → 忽略(不覆盖用户决策前的任何一侧)', () => {
+    ws.upsertTab('/a/c.md', 'saved')
+    ws.updateActiveContent('mine')
+    dispatchExternalChangeKind('/a/c.md', 'modified')
+    const tab = ws.tabs.find((t) => t.path === '/a/c.md')!
+    expect(tab.status).toBe('conflict')
+
+    const tracker = trackReloadEvents()
+    dispatchExternalChangeKind('/a/c.md', 'removed')
+    expect(tab.status).toBe('conflict')
+    expect(tab.content).toBe('mine')
+    expect(tracker.fired).toEqual([])
+  })
+
+  it('removed 后「保留我的」→ 重新写盘恢复为 Clean 并清空 conflictKind', async () => {
+    ws.upsertTab('/a/gone3.md', 'disk gone')
+    ws.updateActiveContent('my recovery version')
+    dispatchExternalChangeKind('/a/gone3.md', 'removed')
+    const tab = ws.tabs.find((t) => t.path === '/a/gone3.md')!
+    expect(tab.conflictKind).toBe('removed')
+
+    const ok = await ws.resolveConflictKeepMine()
+    expect(ok).toBe(true)
+    expect(tab.status).toBe('clean')
+    expect(tab.conflictKind).toBeUndefined()
+    expect(tab.savedContent).toBe('my recovery version')
+  })
+
+  it('modified 决策「用磁盘版本」→ Clean + conflictKind 清除 + reload 派发', () => {
+    ws.upsertTab('/a/m.md', 'disk')
+    ws.updateActiveContent('mine')
+    dispatchExternalChangeKind('/a/m.md', 'modified')
+    const tab = ws.tabs.find((t) => t.path === '/a/m.md')!
+    expect(tab.conflictKind).toBe('modified')
+    const tracker = trackReloadEvents()
+    expect(ws.resolveConflictUseDisk()).toBe(true)
+    expect(tab.status).toBe('clean')
+    expect(tab.conflictKind).toBeUndefined()
+    expect(tracker.fired).toEqual(['/a/m.md'])
+  })
+})
+
+describe('workspace: conflict 态关闭标签确认(边缘场景 6,交接备注 #5)', () => {
+  it('conflict 标签 closeTab 返回 false(走确认路径,不静默丢数据)', () => {
+    ws.upsertTab('/a/x.md', 'saved base')
+    ws.updateActiveContent('my edit')
+    dispatchExternalChange('/a/x.md')
+    const tab = ws.tabs.find((t) => t.path === '/a/x.md')!
+    expect(tab.status).toBe('conflict')
+
+    expect(ws.closeTab('/a/x.md')).toBe(false)
+    expect(ws.tabs.find((t) => t.path === '/a/x.md')).toBeTruthy()
+  })
+
+  it('确认丢弃(forceCloseTab)才真正关闭 conflict 标签', () => {
+    ws.upsertTab('/a/y.md', 'saved base')
+    ws.updateActiveContent('my edit')
+    dispatchExternalChange('/a/y.md')
+    expect(ws.tabs.find((t) => t.path === '/a/y.md')!.status).toBe('conflict')
+
+    ws.forceCloseTab('/a/y.md')
+    expect(ws.tabs.find((t) => t.path === '/a/y.md')).toBeUndefined()
+  })
+})
+
+describe('workspace: 冲突安全网独立于自动保存开关(边缘场景 9)', () => {
+  it('开关关闭:Dirty 仍进 Conflict、Clean 仍静默重载(安全网仍生效)', () => {
+    const settings = useSettingsStore()
+    settings.setAutoSaveEnabled(false)
+    expect(settings.autoSaveEnabled).toBe(false)
+
+    // Dirty → Conflict
+    ws.upsertTab('/a/off1.md', 'saved')
+    ws.updateActiveContent('edit with switch off')
+    dispatchExternalChange('/a/off1.md')
+    expect(ws.tabs.find((t) => t.path === '/a/off1.md')!.status).toBe('conflict')
+
+    // Clean → reload
+    ws.upsertTab('/a/off2.md', 'clean content')
+    const tracker = trackReloadEvents()
+    dispatchExternalChange('/a/off2.md')
+    expect(tracker.fired).toEqual(['/a/off2.md'])
+
+    settings.setAutoSaveEnabled(true) // 还原,避免影响后续用例
+  })
 })
