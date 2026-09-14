@@ -1,7 +1,12 @@
 ---
 ql_state_version: '1.0'
 current_phase: 1
-status: discussed
+work_branch: ql/phase-1-autosave
+base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
+status: skeleton_complete
+skeleton_endpoints: 11
+skeleton_events: 1
+waves_executed: 2
 api_endpoints_count: 11
 event_messages_count: 1
 ---
