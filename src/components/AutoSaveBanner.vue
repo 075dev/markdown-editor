@@ -3,8 +3,11 @@ import { computed } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 /**
- * 冲突提示横幅(event-flow.md 冲突安全网):
- * 任一标签处于 Conflict 时显示,提供双按钮决策。
+ * 自动保存状态条(ql Phase 1 填充态):
+ *   1. 冲突横幅:任一标签处于 Conflict 时显示,双按钮决策;
+ *      文案区分 conflictKind(modified=被外部修改 / removed=被外部删除)。
+ *   2. 保存通知:无冲突时显示 saveNotice(保存失败/重试恢复),
+ *      error 级可手动关闭,info 级由 useAutoSave 定时清除。
  * 仅消费 workspace store,不直接触碰 Tauri API(宪法 C1)。
  */
 const workspace = useWorkspaceStore()
@@ -13,12 +16,23 @@ const conflictTab = computed(
   () => workspace.tabs.find((t) => t.status === 'conflict') ?? null,
 )
 
+const conflictText = computed(() => {
+  if (!conflictTab.value) return ''
+  return conflictTab.value.conflictKind === 'removed'
+    ? `「${conflictTab.value.name}」已在外部被删除,自动保存已暂停(「保留我的」会重新写盘恢复文件)`
+    : `「${conflictTab.value.name}」已被外部修改,自动保存已暂停`
+})
+
 function keepMine() {
   void workspace.resolveConflictKeepMine()
 }
 
 function useDisk() {
   workspace.resolveConflictUseDisk()
+}
+
+function dismissNotice() {
+  workspace.dismissSaveNotice()
 }
 </script>
 
@@ -29,9 +43,7 @@ function useDisk() {
     role="alert"
     data-testid="autosave-banner"
   >
-    <span class="autosave-banner__text">
-      「{{ conflictTab.name }}」已被外部修改,自动保存已暂停
-    </span>
+    <span class="autosave-banner__text">{{ conflictText }}</span>
     <div class="autosave-banner__actions">
       <button
         type="button"
@@ -50,6 +62,28 @@ function useDisk() {
         用磁盘版本
       </button>
     </div>
+  </div>
+  <div
+    v-else-if="workspace.saveNotice"
+    class="autosave-notice"
+    :class="
+      workspace.saveNotice.level === 'error'
+        ? 'autosave-notice--error'
+        : 'autosave-notice--info'
+    "
+    :role="workspace.saveNotice.level === 'error' ? 'alert' : 'status'"
+    data-testid="autosave-notice"
+  >
+    <span class="autosave-notice__text">{{ workspace.saveNotice.message }}</span>
+    <button
+      type="button"
+      class="autosave-notice__close"
+      data-testid="notice-dismiss"
+      aria-label="关闭通知"
+      @click="dismissNotice"
+    >
+      ✕
+    </button>
   </div>
 </template>
 
@@ -87,5 +121,34 @@ function useDisk() {
 
 .autosave-banner__btn:hover {
   border-color: #fff;
+}
+
+.autosave-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.autosave-notice--error {
+  background: var(--danger, #b91c1c);
+}
+
+.autosave-notice--info {
+  background: var(--ok, #15803d);
+}
+
+.autosave-notice__close {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  cursor: pointer;
 }
 </style>
