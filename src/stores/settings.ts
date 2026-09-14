@@ -32,9 +32,11 @@ interface PersistedSettings {
    */
   syncScroll: boolean
   /**
-   * 自动保存总开关(ql Phase 1 骨架)。
-   * 默认 false(骨架期安全默认:不改变现有手动保存行为);
-   * 关闭时自动保存全部停用(防抖/失焦/重试),冲突安全网仍生效。
+   * 自动保存总开关(ql Phase 1 填充态)。
+   * 默认 false(安全默认:不改变现有手动保存行为)。
+   * 开启时:内容变更 1.5 秒防抖写盘;窗口失焦立即保存全部 Dirty 标签;
+   * 写盘失败按 1s/2s/4s 指数退避重试 3 次,仍失败保持 Dirty 等下次触发。
+   * 关闭时:防抖/失焦/重试全部停用,仅 Ctrl+S 手动保存;冲突安全网仍生效。
    */
   autoSaveEnabled: boolean
 }

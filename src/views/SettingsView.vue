@@ -336,7 +336,8 @@ onMounted(() => {
           <div class="settings__row-label">
             <span class="settings__row-name">自动保存</span>
             <span class="settings__row-hint">
-              内容变更后延迟 1.5 秒自动写盘;关闭后仅 Ctrl+S 手动保存。
+              内容变更 1.5 秒后自动保存,窗口失焦时立即保存全部未保存标签;
+              保存失败自动重试。关闭后仅 Ctrl+S 手动保存,冲突安全网仍生效。
             </span>
           </div>
           <div class="settings__row-control">

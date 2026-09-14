@@ -84,3 +84,24 @@ describe('settings.autoSaveEnabled', () => {
     expect(s.autoSaveEnabled).toBe(false)
   })
 })
+
+describe('settings.autoSaveEnabled(填充阶段补充:持久化路径全覆盖)', () => {
+  it('toggleAutoSaveEnabled 切换值也写回 localStorage', async () => {
+    const s = useSettingsStore()
+    s.toggleAutoSaveEnabled()
+    await new Promise((r) => setTimeout(r, 0))
+    const parsed = JSON.parse(localStorage.getItem('mde:settings:v5')!)
+    expect(parsed.autoSaveEnabled).toBe(true)
+  })
+
+  it('resetAll 恢复 false 且写回 localStorage(重置路径不残留 true)', async () => {
+    const s = useSettingsStore()
+    s.setAutoSaveEnabled(true)
+    await new Promise((r) => setTimeout(r, 0))
+    s.resetAll()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(s.autoSaveEnabled).toBe(false)
+    const parsed = JSON.parse(localStorage.getItem('mde:settings:v5')!)
+    expect(parsed.autoSaveEnabled).toBe(false)
+  })
+})
