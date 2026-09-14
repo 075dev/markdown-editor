@@ -31,6 +31,12 @@ interface PersistedSettings {
    * 单栏（edit / preview）模式下不生效。
    */
   syncScroll: boolean
+  /**
+   * 自动保存总开关(ql Phase 1 骨架)。
+   * 默认 false(骨架期安全默认:不改变现有手动保存行为);
+   * 关闭时自动保存全部停用(防抖/失焦/重试),冲突安全网仍生效。
+   */
+  autoSaveEnabled: boolean
 }
 
 /**
@@ -131,6 +137,7 @@ function load(): PersistedSettings {
       fontSize: FONT_SIZE_DEFAULT,
       sidebarCollapsed: false,
       syncScroll: true,
+      autoSaveEnabled: false,
     }
   }
   try {
@@ -145,6 +152,7 @@ function load(): PersistedSettings {
         fontSize: FONT_SIZE_DEFAULT,
         sidebarCollapsed: false,
         syncScroll: true,
+        autoSaveEnabled: false,
       }
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>
@@ -165,6 +173,10 @@ function load(): PersistedSettings {
           : false,
       syncScroll:
         typeof parsed.syncScroll === 'boolean' ? parsed.syncScroll : true,
+      autoSaveEnabled:
+        typeof parsed.autoSaveEnabled === 'boolean'
+          ? parsed.autoSaveEnabled
+          : false,
     }
   } catch {
     return {
@@ -176,6 +188,7 @@ function load(): PersistedSettings {
       fontSize: FONT_SIZE_DEFAULT,
       sidebarCollapsed: false,
       syncScroll: true,
+      autoSaveEnabled: false,
     }
   }
 }
@@ -237,10 +250,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const fontSize = ref<number>(initial.fontSize)
   const sidebarCollapsed = ref<boolean>(initial.sidebarCollapsed)
   const syncScroll = ref<boolean>(initial.syncScroll)
+  const autoSaveEnabled = ref<boolean>(initial.autoSaveEnabled)
 
   watch(
-    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed, syncScroll],
-    ([t, r, v, sf, mf, fs, sc, sy]) => {
+    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed, syncScroll, autoSaveEnabled],
+    ([t, r, v, sf, mf, fs, sc, sy, as]) => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(
           STORAGE_KEY,
@@ -253,6 +267,7 @@ export const useSettingsStore = defineStore('settings', () => {
             fontSize: fs,
             sidebarCollapsed: sc,
             syncScroll: sy,
+            autoSaveEnabled: as,
           }),
         )
       }
@@ -306,6 +321,14 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarCollapsed.value = value
   }
 
+  function setAutoSaveEnabled(value: boolean) {
+    autoSaveEnabled.value = value
+  }
+
+  function toggleAutoSaveEnabled() {
+    autoSaveEnabled.value = !autoSaveEnabled.value
+  }
+
   function setSyncScroll(value: boolean) {
     syncScroll.value = value
   }
@@ -323,6 +346,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fontSize.value = FONT_SIZE_DEFAULT
     sidebarCollapsed.value = false
     syncScroll.value = true
+    autoSaveEnabled.value = false
   }
 
   return {
@@ -334,6 +358,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fontSize,
     sidebarCollapsed,
     syncScroll,
+    autoSaveEnabled,
     toggleTheme,
     setTheme,
     setViewMode,
@@ -345,6 +370,8 @@ export const useSettingsStore = defineStore('settings', () => {
     setSidebarCollapsed,
     setSyncScroll,
     toggleSyncScroll,
+    setAutoSaveEnabled,
+    toggleAutoSaveEnabled,
     resetAll,
   }
 })
