@@ -367,3 +367,55 @@ describe('useAutoSave(填充态:窗口失焦立即保存)', () => {
     expect(untitled.status).toBe('dirty')
   })
 })
+
+describe('useAutoSave(修复 F2:开关飞行中关闭撤销已安排的防抖/重试)', () => {
+  it('防抖已安排后关闭开关:到点不写盘,内容保持 Dirty', async () => {
+    const { ws, settings } = setup()
+    settings.setAutoSaveEnabled(true)
+    ws.upsertTab('/a/demo.md', 'base')
+    ws.updateActiveContent('in-flight edit')
+    await vi.advanceTimersByTimeAsync(0) // 让 watch 建立防抖定时器
+    expect(saveMock).not.toHaveBeenCalled()
+    settings.setAutoSaveEnabled(false) // 飞行中关闭
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(saveMock).not.toHaveBeenCalled()
+    dirtyTab(ws, '/a/demo.md', 'in-flight edit')
+  })
+
+  it('重试链等待期关闭开关:剩余 1s/2s/4s 重试全部停止', async () => {
+    const { ws, settings } = setup()
+    settings.setAutoSaveEnabled(true)
+    ws.upsertTab('/a/demo.md', 'base')
+    ws.updateActiveContent('my edit')
+    saveMock
+      .mockRejectedValueOnce('FILE_WRITE_FAILED: busy')
+      .mockResolvedValue({ path: '/a/demo.md' })
+
+    await vi.advanceTimersByTimeAsync(1600) // 防抖到点 → 失败,安排 1s 重试
+    expect(saveMock).toHaveBeenCalledTimes(1)
+    settings.setAutoSaveEnabled(false) // 重试等待期关闭
+    await vi.advanceTimersByTimeAsync(1000 + 2000 + 4000 + 5000)
+    expect(saveMock).toHaveBeenCalledTimes(1) // 后续重试全部未发生
+    dirtyTab(ws, '/a/demo.md', 'my edit')
+  })
+
+  it('重试回调先于 watch 生效的极端时序:回调入口复查开关兜底', async () => {
+    const { ws, settings } = setup()
+    settings.setAutoSaveEnabled(true)
+    ws.upsertTab('/a/demo.md', 'base')
+    ws.updateActiveContent('my edit')
+    saveMock
+      .mockRejectedValueOnce('FILE_READ_FAILED: fs broken')
+      .mockResolvedValue({ path: '/a/demo.md' })
+
+    await vi.advanceTimersByTimeAsync(1600) // 初始失败 → 安排 1s 重试
+    expect(saveMock).toHaveBeenCalledTimes(1)
+    // 关闭后不推进微任务,直接让重试定时器到点:回调入口复查仍必须拦截
+    settings.autoSaveEnabled = false
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(saveMock).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(saveMock).toHaveBeenCalledTimes(1)
+    dirtyTab(ws, '/a/demo.md', 'my edit')
+  })
+})

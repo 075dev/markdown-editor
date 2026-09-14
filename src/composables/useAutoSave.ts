@@ -113,6 +113,8 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
     }
     const t = setTimeout(() => {
       retryTimers = retryTimers.filter((x) => x !== t)
+      // 修复 F2:每次重试执行前复查开关——飞行中关闭则停止整条重试链
+      if (!settings.autoSaveEnabled) return
       void retryRound(paths).then((failed) => {
         if (failed.length > 0) scheduleRetryChain(failed, attempt + 1)
       })
@@ -141,6 +143,8 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
     cancelPending()
     timer = setTimeout(() => {
       timer = null
+      // 修复 F2:防抖到点执行前复查开关——飞行中关闭则不写盘
+      if (!settings.autoSaveEnabled) return
       void runAutoSaveRound()
     }, debounceMs)
   }
@@ -178,9 +182,20 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
     window.addEventListener('blur', onBlur)
   }
 
+  // 修复 F2:开关飞行中关闭时,撤销已安排的防抖定时器与重试链(边缘场景 9)
+  const stopEnabledWatch = watch(
+    () => settings.autoSaveEnabled,
+    (enabled) => {
+      if (enabled) return
+      cancelPending()
+      clearRetries()
+    },
+  )
+
   if (getCurrentScope()) {
     onScopeDispose(() => {
       stop()
+      stopEnabledWatch()
       cancelPending()
       clearRetries()
       clearRecoveryTimer()
