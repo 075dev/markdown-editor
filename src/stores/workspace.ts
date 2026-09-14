@@ -144,8 +144,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   /**
    * Conflict 决策「保留我的」:编辑器内容覆盖写盘 -> Clean 并恢复自动保存。
    */
-  async function resolveConflictKeepMine(): Promise<boolean> {
-    const tab = activeTab.value
+  async function resolveConflictKeepMine(path?: string): Promise<boolean> {
+    // 修复 F3:支持按 path 决策(冲突横幅逐标签渲染,按钮指向各自标签);缺省仍作用于活动标签
+    const tab = path ? tabs.value.find((t) => t.path === path) : activeTab.value
     if (!tab || tab.status !== 'conflict') return false
     try {
       const result = await saveMarkdownFile(tab.content, tab.path)
@@ -170,8 +171,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
    * Conflict 决策「用磁盘版本」:丢弃未保存修改,重载磁盘内容 -> Clean。
    * 复用 mde:reload-tab 链路让 EditorPane 读盘刷新。
    */
-  function resolveConflictUseDisk(): boolean {
-    const tab = activeTab.value
+  function resolveConflictUseDisk(path?: string): boolean {
+    // 修复 F3:支持按 path 决策(冲突横幅逐标签渲染,按钮指向各自标签);缺省仍作用于活动标签
+    const tab = path ? tabs.value.find((t) => t.path === path) : activeTab.value
     if (!tab || tab.status !== 'conflict') return false
     tab.status = 'clean'
     tab.conflictKind = undefined

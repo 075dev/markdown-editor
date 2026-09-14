@@ -1,34 +1,33 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useWorkspaceStore } from '@/stores/workspace'
+import { useWorkspaceStore, type OpenTab } from '@/stores/workspace'
 
 /**
  * 自动保存状态条(ql Phase 1 填充态):
- *   1. 冲突横幅:任一标签处于 Conflict 时显示,双按钮决策;
- *      文案区分 conflictKind(modified=被外部修改 / removed=被外部删除)。
+ *   1. 冲突横幅:按「存在 conflict 的标签列表」逐条渲染,每条目的
+ *      文案与双按钮都指向各自标签(修复 F3 错位);文案区分
+ *      conflictKind(modified=被外部修改 / removed=被外部删除)。
  *   2. 保存通知:无冲突时显示 saveNotice(保存失败/重试恢复),
  *      error 级可手动关闭,info 级由 useAutoSave 定时清除。
  * 仅消费 workspace store,不直接触碰 Tauri API(宪法 C1)。
  */
 const workspace = useWorkspaceStore()
 
-const conflictTab = computed(
-  () => workspace.tabs.find((t) => t.status === 'conflict') ?? null,
-)
+/** 修复 F3:渲染全部 conflict 标签,文案与按钮均作用于各自标签,不再错位到 activeTab */
+const conflictTabs = computed(() => workspace.tabs.filter((t) => t.status === 'conflict'))
 
-const conflictText = computed(() => {
-  if (!conflictTab.value) return ''
-  return conflictTab.value.conflictKind === 'removed'
-    ? `「${conflictTab.value.name}」已在外部被删除,自动保存已暂停(「保留我的」会重新写盘恢复文件)`
-    : `「${conflictTab.value.name}」已被外部修改,自动保存已暂停`
-})
-
-function keepMine() {
-  void workspace.resolveConflictKeepMine()
+function conflictText(tab: OpenTab): string {
+  return tab.conflictKind === 'removed'
+    ? `「${tab.name}」已在外部被删除,自动保存已暂停(「保留我的」会重新写盘恢复文件)`
+    : `「${tab.name}」已被外部修改,自动保存已暂停`
 }
 
-function useDisk() {
-  workspace.resolveConflictUseDisk()
+function keepMine(tab: OpenTab) {
+  void workspace.resolveConflictKeepMine(tab.path)
+}
+
+function useDisk(tab: OpenTab) {
+  void workspace.resolveConflictUseDisk(tab.path)
 }
 
 function dismissNotice() {
@@ -38,29 +37,35 @@ function dismissNotice() {
 
 <template>
   <div
-    v-if="conflictTab"
+    v-if="conflictTabs.length > 0"
     class="autosave-banner"
     role="alert"
     data-testid="autosave-banner"
   >
-    <span class="autosave-banner__text">{{ conflictText }}</span>
-    <div class="autosave-banner__actions">
-      <button
-        type="button"
-        class="autosave-banner__btn autosave-banner__btn--primary"
-        data-testid="banner-keep-mine"
-        @click="keepMine"
-      >
-        保留我的
-      </button>
-      <button
-        type="button"
-        class="autosave-banner__btn"
-        data-testid="banner-use-disk"
-        @click="useDisk"
-      >
-        用磁盘版本
-      </button>
+    <div
+      v-for="tab in conflictTabs"
+      :key="tab.path"
+      class="autosave-banner__row"
+    >
+      <span class="autosave-banner__text">{{ conflictText(tab) }}</span>
+      <div class="autosave-banner__actions">
+        <button
+          type="button"
+          class="autosave-banner__btn autosave-banner__btn--primary"
+          data-testid="banner-keep-mine"
+          @click="keepMine(tab)"
+        >
+          保留我的
+        </button>
+        <button
+          type="button"
+          class="autosave-banner__btn"
+          data-testid="banner-use-disk"
+          @click="useDisk(tab)"
+        >
+          用磁盘版本
+        </button>
+      </div>
     </div>
   </div>
   <div
@@ -90,13 +95,19 @@ function dismissNotice() {
 <style scoped>
 .autosave-banner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 16px;
   background: var(--danger, #b91c1c);
   color: #fff;
   font-size: 13px;
+}
+
+.autosave-banner__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .autosave-banner__actions {

@@ -113,6 +113,42 @@ describe('AutoSaveBanner', () => {
     expect(wrapper.find('[data-testid="autosave-notice"]').exists()).toBe(false)
   })
 
+
+  it('多标签冲突:横幅逐标签渲染,按钮只作用于各自标签(修复 F3 错位)', async () => {
+    const { ws, wrapper } = mountBanner()
+    // b.md 进入冲突(此时 b 为活动标签)
+    ws.upsertTab('/a/b.md', 'disk b')
+    ws.updateActiveContent('mine b')
+    fireExternal('/a/b.md', 'modified')
+    // 切到 c.md 并让其也进入冲突
+    ws.upsertTab('/a/c.md', 'disk c')
+    ws.updateActiveContent('mine c')
+    fireExternal('/a/c.md', 'modified')
+    await flushPromises()
+
+    expect(ws.activeTabPath).toBe('/a/c.md')
+    const banner = wrapper.find('[data-testid="autosave-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('b.md')
+    expect(banner.text()).toContain('c.md')
+
+    const keepButtons = wrapper.findAll('[data-testid="banner-keep-mine"]')
+    const useDiskButtons = wrapper.findAll('[data-testid="banner-use-disk"]')
+    expect(keepButtons.length).toBe(2)
+    expect(useDiskButtons.length).toBe(2)
+
+    // 点击第一个条目(b.md)的「保留我的」:只写盘 b.md,c.md 保持冲突
+    await keepButtons[0].trigger('click')
+    await flushPromises()
+    expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    expect(saveMarkdownFile).toHaveBeenCalledWith('mine b', '/a/b.md')
+    expect(ws.tabs.find((t) => t.path === '/a/b.md')!.status).toBe('clean')
+    expect(ws.tabs.find((t) => t.path === '/a/c.md')!.status).toBe('conflict')
+    // 活动标签仍是 c.md,c 的条目仍在横幅中
+    expect(ws.activeTabPath).toBe('/a/c.md')
+    expect(wrapper.findAll('[data-testid="banner-keep-mine"]').length).toBe(1)
+  })
+
   it('saveNotice info:渲染恢复通知', async () => {
     const { ws, wrapper } = mountBanner()
     ws.saveNotice = { level: 'info', message: '自动保存已恢复' }
