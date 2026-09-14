@@ -331,6 +331,27 @@ onMounted(() => {
             </button>
           </div>
         </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">自动保存</span>
+            <span class="settings__row-hint">
+              内容变更后延迟 1.5 秒自动写盘;关闭后仅 Ctrl+S 手动保存。
+            </span>
+          </div>
+          <div class="settings__row-control">
+            <button
+              type="button"
+              class="settings__chip"
+              :class="{ 'is-active': settings.autoSaveEnabled }"
+              :aria-pressed="settings.autoSaveEnabled"
+              :data-testid="settings.autoSaveEnabled ? 'autosave-on' : 'autosave-off'"
+              @click="settings.toggleAutoSaveEnabled"
+            >
+              {{ settings.autoSaveEnabled ? '开' : '关' }}
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 
