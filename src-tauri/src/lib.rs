@@ -328,7 +328,7 @@ async fn watch_file(app: AppHandle, path: String) -> Result<(), String> {
 
     let path_buf = PathBuf::from(&path);
     if !path_buf.exists() {
-        return Err(format!("path does not exist: {}", path));
+        return Err(format!("FILE_NOT_FOUND: path does not exist: {}", path));
     }
 
     // 已经在监听同路径就跳过
@@ -347,16 +347,15 @@ async fn watch_file(app: AppHandle, path: String) -> Result<(), String> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         match res {
             Ok(event) => {
-                // 只关心"内容变更"类型：Modify(Data(Content)) / Modify(Name(Rename))
-                let interesting = matches!(
-                    event.kind,
+                // 事件分类：Remove 类 → removed，其余关注类型 → modified。
+                // 关注类型：Modify(Data) / Modify(Name(Rename To)) / Create / Remove。
+                let kind = match event.kind {
+                    EventKind::Remove(_) => "removed",
                     EventKind::Modify(ModifyKind::Data(_))
                         | EventKind::Modify(ModifyKind::Name(RenameMode::To))
-                        | EventKind::Create(_)
-                );
-                if !interesting {
-                    return;
-                }
+                        | EventKind::Create(_) => "modified",
+                    _ => return,
+                };
                 // 1s 节流：同路径 1s 内的多次事件只 emit 一次
                 let now = Instant::now();
                 let mut last = LAST_FIRE.lock().unwrap();
@@ -370,7 +369,7 @@ async fn watch_file(app: AppHandle, path: String) -> Result<(), String> {
                 // emit 给前端；前端监听 file-external-change 事件
                 let _ = app_for_cb.emit(
                     "file-external-change",
-                    serde_json::json!({ "path": path_for_cb }),
+                    serde_json::json!({ "path": path_for_cb, "kind": kind }),
                 );
             }
             Err(_e) => {
@@ -378,11 +377,11 @@ async fn watch_file(app: AppHandle, path: String) -> Result<(), String> {
             }
         }
     })
-    .map_err(|e| format!("failed to create watcher: {e}"))?;
+    .map_err(|e| format!("WATCH_FAILED: failed to create watcher: {e}"))?;
 
     watcher
         .watch(&path_buf, RecursiveMode::NonRecursive)
-        .map_err(|e| format!("failed to watch {path}: {e}"))?;
+        .map_err(|e| format!("WATCH_FAILED: failed to watch {path}: {e}"))?;
 
     let mut guard = ACTIVE_WATCHER.lock().unwrap();
     *guard = Some(FileWatcher {
@@ -402,7 +401,7 @@ fn unwatch_file() {
 /// 重新读取文件内容（用于外部修改事件触发后的实际重载）。
 #[tauri::command]
 fn read_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("read failed: {e}"))
+    std::fs::read_to_string(&path).map_err(|e| format!("FILE_READ_FAILED: read failed: {e}"))
 }
 
 /* ---------- 本地 PlantUML 服务 ---------- */

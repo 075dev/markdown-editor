@@ -7,6 +7,7 @@
  */
 
 import { isTauri } from '@/services/env'
+import { normalizeError } from '@/services/errors'
 
 export interface OpenFileResult {
   path: string
@@ -195,20 +196,22 @@ export async function watchFileExternal(path: string): Promise<UnlistenFn | null
     const { invoke } = await import('@tauri-apps/api/core')
     const { listen } = await import('@tauri-apps/api/event')
     await invoke('watch_file', { path })
-    const unlisten = await listen<{ path: string }>(
+    const unlisten = await listen<{ path: string; kind?: 'modified' | 'removed' }>(
       'file-external-change',
       (event) => {
         if (event.payload?.path === path) {
           window.dispatchEvent(
-            new CustomEvent('mde:file-external-change', { detail: { path } }),
+            new CustomEvent('mde:file-external-change', {
+              detail: { path, kind: event.payload.kind ?? 'modified' },
+            }),
           )
         }
       },
     )
     return unlisten
   } catch (err) {
-    console.warn('[fileService] watchFileExternal failed:', err)
-    return null
+    // 骨架期契约:watch 建立失败不再吞错,抛规范化 QlError(含 code)
+    throw normalizeError(err)
   }
 }
 
@@ -230,8 +233,8 @@ export async function readTextFile(path: string): Promise<string | null> {
       const content = await invoke<string>('read_file', { path })
       return content
     } catch (err) {
-      console.warn('[fileService] readTextFile (tauri) failed:', err)
-      return null
+      // 骨架期契约:读失败不再吞错,抛规范化 QlError(含 code)
+      throw normalizeError(err)
     }
   }
   // Web 模式：File System Access API 可以拿到已授权文件的 handle
