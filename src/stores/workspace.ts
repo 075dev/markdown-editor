@@ -12,11 +12,20 @@ import {
   type DirEntry,
 } from '@/services/fileService'
 
+/**
+ * 标签页文件状态机(event-flow.md TabFileStatus):
+ *   clean:磁盘与编辑器一致;dirty:有未保存修改;
+ *   conflict:与磁盘分叉,该标签自动保存暂停,等用户决策。
+ */
+export type TabFileStatus = 'clean' | 'dirty' | 'conflict'
+
 export interface OpenTab {
   path: string
   name: string
   content: string
   savedContent: string
+  /** 骨架期与 isDirty 派生(content !== savedContent)兼容并存 */
+  status: TabFileStatus
 }
 
 export const FILE_EXTERNAL_CHANGE_EVENT = 'mde:file-external-change'
@@ -83,6 +92,51 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   /**
+   * 外部修改事件决策(event-flow.md):
+   *   - 未打开的 path -> 忽略
+   *   - Conflict -> 忽略(等用户决策,不覆盖任何一侧内容)
+   *   - Dirty -> 进入 Conflict,暂停该标签自动保存
+   *   - Clean -> 静默重载(复用 mde:reload-tab 链路,由 EditorPane 读盘刷新)
+   */
+  function handleExternalChange(path: string) {
+    const tab = tabs.value.find((t) => t.path === path)
+    if (!tab) return
+    if (tab.status === 'conflict') return
+    if (tab.status === 'dirty') {
+      tab.status = 'conflict'
+      return
+    }
+    reloadFromDisk(path)
+  }
+
+  /**
+   * Conflict 决策「保留我的」:编辑器内容覆盖写盘 -> Clean 并恢复自动保存。
+   */
+  async function resolveConflictKeepMine(): Promise<boolean> {
+    const tab = activeTab.value
+    if (!tab || tab.status !== 'conflict') return false
+    const result = await saveMarkdownFile(tab.content, tab.path)
+    if (!result) return false
+    tab.path = result.path
+    tab.name = result.path.split(/[\\/]/).pop() ?? result.path
+    tab.savedContent = tab.content
+    tab.status = 'clean'
+    return true
+  }
+
+  /**
+   * Conflict 决策「用磁盘版本」:丢弃未保存修改,重载磁盘内容 -> Clean。
+   * 复用 mde:reload-tab 链路让 EditorPane 读盘刷新。
+   */
+  function resolveConflictUseDisk(): boolean {
+    const tab = activeTab.value
+    if (!tab || tab.status !== 'conflict') return false
+    tab.status = 'clean'
+    reloadFromDisk(tab.path)
+    return true
+  }
+
+  /**
    * 给一个文件路径建立后端监听（覆盖之前的）。
    * 监听是单文件粒度——同一时间只盯一个文件，符合 VSCode / MarkText 等
    * 主流编辑器的"focused file watcher"模式。
@@ -120,7 +174,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       e: Event,
     ) => {
       const detail = (e as CustomEvent<{ path: string }>).detail
-      if (detail?.path) reloadFromDisk(detail.path)
+      if (detail?.path) handleExternalChange(detail.path)
     }) as EventListener)
   }
 
@@ -140,12 +194,14 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (existing) {
       existing.content = content
       existing.savedContent = content
+      existing.status = 'clean'
     } else {
       tabs.value.push({
         path,
         name: path.split(/[\\/]/).pop() ?? path,
         content,
         savedContent: content,
+        status: 'clean',
       })
     }
     activeTabPath.value = path
@@ -198,7 +254,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   function updateActiveContent(content: string) {
     const tab = activeTab.value
     if (!tab) return
+    if (tab.status === 'conflict') {
+      // Conflict 态允许继续编辑:内容变化但状态不变(自动保存保持暂停)
+      tab.content = content
+      return
+    }
     tab.content = content
+    tab.status = content === tab.savedContent ? 'clean' : 'dirty'
   }
 
   async function saveActive(): Promise<boolean> {
@@ -209,6 +271,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     tab.path = result.path
     tab.name = result.path.split(/[\\/]/).pop() ?? result.path
     tab.savedContent = tab.content
+    tab.status = 'clean'
     return true
   }
 
@@ -224,6 +287,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     tab.path = result.path
     tab.name = result.path.split(/[\\/]/).pop() ?? result.path
     tab.savedContent = tab.content
+    tab.status = 'clean'
     return true
   }
 
@@ -331,6 +395,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     updateActiveContent,
     saveActive,
     saveAsActive,
+    resolveConflictKeepMine,
+    resolveConflictUseDisk,
     chooseWorkspace,
     refreshTree,
     toggleNode,

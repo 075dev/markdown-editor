@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import EditorPane from '@/components/EditorPane.vue'
 import PreviewPane from '@/components/PreviewPane.vue'
 import TitleBar from '@/components/TitleBar.vue'
+import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
 import { useEditorScrollSync } from '@/composables/useEditorScrollSync'
 
 const router = useRouter()
@@ -106,6 +107,8 @@ onBeforeUnmount(() => {
     ]"
   >
     <TitleBar />
+    <!-- 冲突安全网横幅:event-flow.md 冲突态双按钮决策(仅 Conflict 时渲染) -->
+    <AutoSaveBanner />
     <div class="home__body">
       <Sidebar v-if="!settings.sidebarCollapsed" class="home__sidebar" />
       <main class="home__main">
