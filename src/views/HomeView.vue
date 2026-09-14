@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore } from '@/stores/settings'
@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import EditorPane from '@/components/EditorPane.vue'
 import PreviewPane from '@/components/PreviewPane.vue'
 import TitleBar from '@/components/TitleBar.vue'
+import { useEditorScrollSync } from '@/composables/useEditorScrollSync'
 
 const router = useRouter()
 const workspace = useWorkspaceStore()
@@ -17,6 +18,26 @@ const viewMode = computed(() => settings.viewMode)
 
 const showEditor = computed(() => viewMode.value !== 'preview')
 const showPreview = computed(() => viewMode.value !== 'edit')
+
+/**
+ * 编辑区 / 预览区的 scrollDOM 引用。
+ *
+ * EditorPane 通过 defineExpose 暴露 editorScrollElement（CM 的 scrollDOM）；
+ * PreviewPane 直接通过 ref 拿到 bodyRef 即可。
+ *
+ * 为什么需要从子组件冒泡：
+ *   - 双栏状态下，同步滚动 hook 需要同时拿到这两个 DOM
+ *   - 子组件各自挂载、卸载、重渲，引用要跟得上
+ */
+const editorScrollEl = ref<HTMLElement | null>(null)
+const previewScrollEl = ref<HTMLElement | null>(null)
+
+// 同步滚动 hook；只在双栏生效。
+useEditorScrollSync({
+  enabled: computed(() => settings.viewMode === 'split' && settings.syncScroll),
+  editorEl: editorScrollEl,
+  previewEl: previewScrollEl,
+})
 
 /**
  * 全局快捷键：
@@ -32,7 +53,6 @@ function onKeyDown(e: KeyboardEvent) {
   const ctrl = e.ctrlKey || e.metaKey
   if (!ctrl) return
   const k = e.key.toLowerCase()
-  // 防止在 input/textarea 内编辑时误触
   const target = e.target as HTMLElement | null
   const inField =
     !!target &&
@@ -61,11 +81,9 @@ function onKeyDown(e: KeyboardEvent) {
     e.preventDefault()
     settings.setViewMode('preview')
   } else if (k === 'b' && !inField) {
-    // Ctrl+B 切换目录栏（VSCode 同款）
     e.preventDefault()
     settings.toggleSidebar()
   } else if (k === ',') {
-    // Ctrl+, 打开设置（Mac: ⌘+,）
     e.preventDefault()
     void router.push({ name: 'settings' })
   }
@@ -92,14 +110,22 @@ onBeforeUnmount(() => {
       <Sidebar v-if="!settings.sidebarCollapsed" class="home__sidebar" />
       <main class="home__main">
         <template v-if="isReady">
-          <EditorPane v-if="showEditor" class="home__editor" />
+          <EditorPane
+            v-if="showEditor"
+            class="home__editor"
+            @ready-editor-scroll="(el) => (editorScrollEl = el)"
+          />
           <div
             v-if="showEditor && showPreview"
             class="home__divider"
             role="separator"
             aria-orientation="vertical"
           ></div>
-          <PreviewPane v-if="showPreview" class="home__preview" />
+          <PreviewPane
+            v-if="showPreview"
+            class="home__preview"
+            @ready-preview-scroll="(el) => (previewScrollEl = el)"
+          />
         </template>
         <div v-else class="home__empty">
           <h2>MarkDownEditor</h2>
@@ -112,7 +138,8 @@ onBeforeUnmount(() => {
           </p>
           <p class="home__ratio">
             当前分割比例：{{ settings.splitRatio.toFixed(2) }} ·
-            视图模式：{{ viewMode }}
+            视图模式：{{ viewMode }} ·
+            同步滚动：{{ settings.syncScroll ? '开' : '关' }}
           </p>
         </div>
       </main>

@@ -137,6 +137,16 @@ function openSettings() {
       </button>
       <button
         type="button"
+        @click="settings.toggleSyncScroll"
+        data-testid="toggle-sync-scroll"
+        :title="settings.syncScroll ? '关闭同步滚动' : '开启同步滚动（双栏下生效）'"
+        :aria-pressed="settings.syncScroll"
+        :disabled="settings.viewMode !== 'split'"
+      >
+        {{ settings.syncScroll ? '↕ 同步' : '↕' }}
+      </button>
+      <button
+        type="button"
         @click="settings.toggleTheme"
         data-testid="toggle-theme"
       >

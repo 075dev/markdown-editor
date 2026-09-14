@@ -10,6 +10,10 @@ const settings = useSettingsStore()
 const containerRef = ref<HTMLDivElement | null>(null)
 let editor: CreatedEditor | null = null
 
+const emit = defineEmits<{
+  (e: 'ready-editor-scroll', el: HTMLElement): void
+}>()
+
 onMounted(() => {
   if (!containerRef.value) return
   editor = createMarkdownEditor(containerRef.value, {
@@ -23,6 +27,13 @@ onMounted(() => {
 
   // 监听外部修改事件：从磁盘重新读取并写入编辑器
   window.addEventListener('mde:reload-tab', onReload as EventListener)
+
+  // 把 CM 的 scrollDOM 冒泡给 HomeView，做同步滚动联动。
+  // CM view.scrollDOM 是真正带 overflow:auto 的容器。
+  if (editor) {
+    const scrollEl = editor.getScrollElement()
+    if (scrollEl) emit('ready-editor-scroll', scrollEl)
+  }
 })
 
 // 监听 settings 变化，实时更新 CodeMirror 字体与字号

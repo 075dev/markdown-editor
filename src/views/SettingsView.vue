@@ -308,6 +308,29 @@ onMounted(() => {
             </button>
           </div>
         </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">同步滚动（双栏）</span>
+            <span class="settings__row-hint">
+              编辑器滚动时按比例驱动预览区；预览区滚动时反之亦然。
+              单栏视图下不生效。
+            </span>
+          </div>
+          <div class="settings__row-control">
+            <button
+              type="button"
+              class="settings__chip"
+              :class="{ 'is-active': settings.syncScroll }"
+              :aria-pressed="settings.syncScroll"
+              :data-testid="settings.syncScroll ? 'sync-scroll-on' : 'sync-scroll-off'"
+              :disabled="settings.viewMode !== 'split'"
+              @click="settings.toggleSyncScroll"
+            >
+              {{ settings.syncScroll ? '开' : '关' }}
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 

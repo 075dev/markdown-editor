@@ -11,6 +11,11 @@ export interface DiagramWindowOptions {
   width?: number
   /** 窗口高度 */
   height?: number
+  /**
+   * 用于让后端去重 —— 同一张图共用一个窗口。
+   * 默认取 url。
+   */
+  windowKey?: string
 }
 
 /**
@@ -20,8 +25,8 @@ export interface DiagramWindowOptions {
  *   1. Tauri 桌面：调后端 open_diagram_window 命令，弹原生 WebviewWindow
  *   2. Web 环境 + 后端未就绪：返回 false（调用方应隐藏按钮或显示提示）
  *
- * 设计：当前实现不做 window.open 回退，因为浏览器标签体验割裂；
- * 调用方应通过 canOpenInWindow() 在 Web 模式下不渲染按钮。
+ * 同一张图按 windowKey（默认=url）由后端做去重 —— 重复点击时已开窗口被 focus，
+ * 而不是再弹一个。
  */
 
 export function canOpenInWindow(): boolean {
@@ -43,6 +48,7 @@ export async function openDiagramWindow(opts: DiagramWindowOptions): Promise<boo
       source: opts.source ?? '',
       width: opts.width ?? 1024,
       height: opts.height ?? 768,
+      windowKey: opts.windowKey ?? opts.url,
     })
     return true
   } catch (err) {

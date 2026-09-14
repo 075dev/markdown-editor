@@ -1,0 +1,400 @@
+# OpenAPI 3.1 契约 —— markdown-editor
+#
+# 用途:.planning/context/openapi.yaml
+# 说明:本项目是 Tauri 2 桌面应用,无 HTTP 服务;"端点"即前端 → Rust 的
+#       invoke 通道(POST 语义)与插件直调能力,统一以 /ipc/<name> 建模。
+#       前端行为语义(自动保存防抖、冲突状态机)见 event-flow.md。
+
+openapi: 3.1.0
+info:
+  title: markdown-editor
+  version: 0.1.0
+  description: |
+    本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
+
+    本阶段(ql Phase 1)范围:**自动保存 + 冲突安全网**。
+    - 现有能力(6 个 tauri command + 文件服务)正式化为契约基线;
+    - 自动保存与冲突行为为目标态增量,时序与状态机见 event-flow.md;
+    - 错误响应 {code, message} 为目标态:现有 Rust `Result<_, String>` 的错误
+      字符串需在构建时规范化映射为 code(见 Assumptions)。
+
+    ## Clarifications
+    - Q: 本阶段范围? → A: 自动保存 + 冲突安全网(Never-Ask 降级自决,README 路线图 Phase 2 明确缺口)(2026-09-14)
+    - Q: 脏文件遇外部修改的默认策略? → A: 进入 conflict 状态,暂停自动保存,状态栏双按钮"保留我的 / 用磁盘版本"(2026-09-14)
+    - Q: 自动保存触发时机? → A: 内容变更防抖 1500ms + 窗口失焦立即写入(2026-09-14)
+    - Q: 覆盖写入前是否留备份? → A: 不留 .bak,安全性由冲突态保护(2026-09-14)
+
+servers:
+  - url: tauri://ipc
+    description: Tauri invoke 通道(桌面);纯 Web 模式下文件能力走 File System Access API 降级
+
+tags:
+  - name: FileIO
+    description: 文件打开/保存/监听(经 plugin-dialog + plugin-fs 与自定义 command)
+  - name: Workspace
+    description: 工作区目录浏览
+  - name: View
+    description: 图表窗口、字体、PlantUML 配置
+
+paths:
+  # ================= 文件 IO =================
+
+  /ipc/open-file-dialog:
+    post:
+      tags: [FileIO]
+      summary: 弹出打开对话框并读取所选 Markdown 文件
+      description: 用户取消时返回 null。过滤器 md/markdown/mdx/txt。
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: 'null' }
+      responses:
+        '200':
+          description: 读取结果;null 表示用户取消
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/OpenFileResult'
+                  - type: 'null'
+        '422': { $ref: '#/components/responses/PathInvalid' }
+        '500': { $ref: '#/components/responses/FileReadFailed' }
+
+  /ipc/save-file:
+    post:
+      tags: [FileIO]
+      summary: 写盘保存(自动保存与手动保存共用通道)
+      description: |
+        path 已知 → 静默写入(自动保存依赖此语义,绝不弹窗);
+        path 缺省 → 弹"另存为"对话框,用户取消返回 null。
+        自动保存失败时按 event-flow.md 重试策略执行,本端点不做内部重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveFileRequest' }
+      responses:
+        '200':
+          description: 实际写入路径;null 表示用户取消对话框
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SaveFileResult'
+                  - type: 'null'
+        '403': { $ref: '#/components/responses/FileWriteFailed' }
+        '422': { $ref: '#/components/responses/PathInvalid' }
+
+  /ipc/new-file:
+    post:
+      tags: [FileIO]
+      summary: 新建文件(强制"另存为"对话框 + 默认文件名)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewFileRequest' }
+      responses:
+        '200':
+          description: 创建结果;null 表示用户取消
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SaveFileResult'
+                  - type: 'null'
+        '403': { $ref: '#/components/responses/FileWriteFailed' }
+
+  /ipc/read-file:
+    post:
+      tags: [FileIO]
+      summary: 按路径读取文本文件(不经对话框)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: 文件内容
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OpenFileResult' }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '422': { $ref: '#/components/responses/PathInvalid' }
+        '500': { $ref: '#/components/responses/FileReadFailed' }
+
+  /ipc/watch-file:
+    post:
+      tags: [FileIO]
+      summary: 监听文件外部修改(同路径 1s 节流)
+      description: |
+        外部变更经事件 file-external-change 推送(payload {path, kind})。
+        同一时刻仅一个监听目标;再次调用即切换目标。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: 监听已建立
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '500': { $ref: '#/components/responses/WatchFailed' }
+
+  /ipc/unwatch-file:
+    post:
+      tags: [FileIO]
+      summary: 取消当前文件监听
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: 'null' }
+      responses:
+        '200':
+          description: 已取消(幂等)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+
+  # ================= 工作区 =================
+
+  /ipc/pick-directory:
+    post:
+      tags: [Workspace]
+      summary: 弹出目录选择对话框(侧栏工作区根目录)
+      responses:
+        '200':
+          description: 所选目录;null 表示用户取消
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { type: string, description: 目录绝对路径 }
+                  - type: 'null'
+
+  /ipc/list-directory:
+    post:
+      tags: [Workspace]
+      summary: 列出目录内容(文件树节点展开)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: 目录项列表(不递归)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/DirEntry' }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  # ================= 视图与配置 =================
+
+  /ipc/open-diagram-window:
+    post:
+      tags: [View]
+      summary: 在独立 WebviewWindow 中打开图表预览
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OpenDiagramWindowRequest' }
+      responses:
+        '200':
+          description: 窗口已打开
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '500': { $ref: '#/components/responses/WindowOpenFailed' }
+
+  /ipc/list-system-fonts:
+    post:
+      tags: [View]
+      summary: 枚举系统字体(设置页字体选择)
+      responses:
+        '200':
+          description: 字体名列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [fonts]
+                properties:
+                  fonts:
+                    type: array
+                    items: { type: string }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /ipc/get-plantuml-server-url:
+    post:
+      tags: [View]
+      summary: 读取 PlantUML 服务器地址配置
+      responses:
+        '200':
+          description: 未配置时 url 为 null(回退 plantuml.com)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    oneOf:
+                      - { type: string, format: uri }
+                      - type: 'null'
+
+# ============================================================
+# 事件(OpenAPI 无原生位置,经 x-ql-events 扩展承载,ql-build 对账用)
+# ============================================================
+x-ql-events:
+  - name: file-external-change
+    direction: rust-to-frontend
+    payload:
+      type: object
+      required: [path, kind]
+      properties:
+        path: { type: string }
+        kind: { type: string, enum: [modified, removed] }
+    publisher: Rust notify watcher(lib.rs watch_file 回调,1s 节流)
+    subscriber: workspace store → 冲突/重载决策(见 event-flow.md)
+    note: 现状 payload 仅 {path};kind 为目标态增量,构建时补齐
+
+components:
+  schemas:
+    OpenFileResult:
+      type: object
+      required: [path, content]
+      properties:
+        path: { type: string, description: 文件绝对路径 }
+        content: { type: string }
+
+    SaveFileRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+        path:
+          type: [string, 'null']
+          description: 已知路径则静默写入;null 则弹另存为对话框
+
+    SaveFileResult:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string }
+
+    NewFileRequest:
+      type: object
+      properties:
+        initialContent: { type: string, default: '' }
+        suggestedName: { type: string, default: 'untitled.md' }
+
+    DirEntry:
+      type: object
+      required: [name, path, isDir]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        isDir: { type: boolean }
+
+    OpenDiagramWindowRequest:
+      type: object
+      required: [title, source, diagramType]
+      properties:
+        title: { type: string }
+        source: { type: string, description: 图表源码 }
+        diagramType: { type: string, enum: [mermaid, plantuml] }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - FILE_NOT_FOUND
+            - FILE_READ_FAILED
+            - FILE_WRITE_FAILED
+            - PATH_INVALID
+            - WATCH_FAILED
+            - WINDOW_OPEN_FAILED
+            - INTERNAL_ERROR
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    FileNotFound:
+      description: 文件不存在
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    FileReadFailed:
+      description: 读取失败(权限/编码)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    FileWriteFailed:
+      description: 写入失败(只读/被占用/权限)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PathInvalid:
+      description: 路径非法
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    WatchFailed:
+      description: 建立监听失败
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    WindowOpenFailed:
+      description: 图表窗口创建失败
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: 未分类内部错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

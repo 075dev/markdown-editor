@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { renderMarkdown } from '@/markdown/pipeline'
-import { mountPanzoomToolbar, type PanzoomHandle } from '@/editor/panzoomToolbar'
+import { canOpenInWindow, openDiagramWindow } from '@/services/diagramWindow'
+import { renderMermaidBlocks } from '@/services/mermaid'
 
 const workspace = useWorkspaceStore()
 const html = ref<string>('')
 const bodyRef = ref<HTMLElement | null>(null)
 
-const handles = new WeakMap<HTMLElement, PanzoomHandle>()
+const emit = defineEmits<{
+  (e: 'ready-preview-scroll', el: HTMLElement): void
+}>()
+
+onMounted(() => {
+  if (bodyRef.value) emit('ready-preview-scroll', bodyRef.value)
+})
 
 watchEffect(async () => {
   const tab = workspace.activeTab
@@ -26,6 +33,7 @@ watchEffect(async () => {
   if (!root) return
 
   // 1) 降级：每个 <img.plantuml-diagram> 挂 onerror
+  //    出错时展示 .plantuml-fallback（pre 里是源码）
   const imgs = Array.from(root.querySelectorAll<HTMLImageElement>('img.plantuml-diagram'))
   imgs.forEach((img) => {
     if (img.dataset.plantumlBound === '1') return
@@ -42,21 +50,46 @@ watchEffect(async () => {
     })
   })
 
-  // 2) pan/zoom：每个 .plantuml-container 实例化一个 panzoom + 工具栏
+  // 2) 点击图片：在新窗口打开 UML 图（在独立窗口里可缩放）。
+  //    注意：新预览行为下，预览区内的图不再支持 pan/zoom 和滚轮缩放，
+  //    避免和文本滚动冲突；缩放统一在 openDiagramWindow 独立窗口中提供。
   const containers = Array.from(root.querySelectorAll<HTMLElement>('.plantuml-container'))
   containers.forEach((container) => {
-    if (handles.has(container)) return
     const img = container.querySelector<HTMLImageElement>('img.plantuml-diagram')
     if (!img) return
-    // plantumlRehype 把源码挂在 data-plantuml-source 上
-    const source = container.dataset.plantumlSource ?? img.dataset.plantumlSource ?? ''
-    const handle = mountPanzoomToolbar(container, img, { plantumlSource: source })
-    handles.set(container, handle)
+    if (container.dataset.openWindowBound === '1') return
+    container.dataset.openWindowBound = '1'
+
+    if (!canOpenInWindow()) {
+      // Web / jsdom 环境：把容器标为"web-only"，并在 CSS 上隐藏（用户进设置关闭即可）
+      container.dataset.mode = 'web'
+      return
+    }
+    container.dataset.mode = 'tauri'
+    container.addEventListener('click', (event: Event) => {
+      // 点到工具栏按钮（已不存在）或伪元素才过滤：现在容器内只有 <img> + <pre>
+      // 这里保留兜底：阻止默认 a 等行为。
+      event.preventDefault()
+      const source = container.dataset.plantumlSource ?? img.dataset.plantumlSource ?? ''
+      void openDiagramWindow({
+        url: img.src,
+        title: `UML 图 — ${img.alt?.slice(0, 40) || 'PlantUML'}`,
+        source,
+      })
+    })
   })
+
+  // 3) Mermaid 客户端渲染：吞掉错误并保留 fallback。
+  //    我们不向上抛 —— 渲染失败时保留 <pre>源码让用户至少能看到定义。
+  try {
+    await renderMermaidBlocks(root)
+  } catch (err) {
+    console.error('[PreviewPane] mermaid render pipeline failed:', err)
+  }
 })
 
 onBeforeUnmount(() => {
-  // WeakMap 自动 GC；如果要立刻释放可遍历 body 子节点
+  // 不需要清理：DOM 会随 PreviewPane 一起被卸载。
 })
 
 const fileName = computed(() => workspace.activeTab?.name ?? '')
@@ -181,7 +214,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 .markdown-body table {
   border-collapse: collapse;
   width: 100%;
-  margin: 0.8em 0;
+  margin: 1em 0;
 }
 
 .markdown-body th,
@@ -211,12 +244,29 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   border-radius: 6px;
   text-align: center;
   overflow: hidden;
-  cursor: grab;
-  touch-action: none;
+  /*
+   * 新行为：预览区内的图不参与 pan/zoom；
+   * 点击在新窗口打开（独立窗口提供缩放）。
+   * zoom-in 光标 + hover 加亮提示用户「可点开」。
+   */
+  cursor: zoom-in;
+  transition: outline-color 120ms ease;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
 }
 
-.markdown-body .plantuml-container:active {
-  cursor: grabbing;
+.markdown-body .plantuml-container:hover {
+  outline-color: var(--accent);
+}
+
+/* Web 模式（没有独立窗口能力）维持原 panzoom 提示样式 —— 不过当前没有任何
+ * 容器生效路径走 web 分支后还可以再缩放，这里保留 zoom-in 提示用户 "可以双击复制"。 */
+.markdown-body .plantuml-container[data-mode='tauri']:active {
+  cursor: zoom-out;
+}
+
+.markdown-body .plantuml-container[data-mode='web'] {
+  cursor: default;
 }
 
 .markdown-body .plantuml-diagram {
@@ -225,6 +275,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   background: #ffffff;
   user-select: none;
   -webkit-user-drag: none;
+  /* 不再依赖 transform-origin：panzoom 不再挂在这 */
   transform-origin: 0 0;
 }
 
@@ -237,68 +288,21 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   display: block;
 }
 
-/* pan/zoom 浮动工具栏：默认悬停显示 */
-.plantuml-panzoom-toolbar {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-  font-size: 12px;
-  user-select: none;
-  opacity: 0;
-  transition: opacity 160ms ease;
-  z-index: 2;
-}
-
-.markdown-body .plantuml-container:hover .plantuml-panzoom-toolbar,
-.plantuml-panzoom-toolbar:focus-within,
-.plantuml-panzoom-toolbar[data-always-visible='1'] {
-  opacity: 1;
-}
-
-.plantuml-panzoom-toolbar__btn {
-  min-width: 28px;
-  height: 24px;
-  padding: 0 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
+/*
+ * Mermaid：<pre.language-mermaid> 被 mermaid.render() 注入 svg 后居中显示。
+ * 渲染失败时保持源码 pre 外观。
+ */
+.markdown-body pre.language-mermaid {
+  text-align: center;
   background: var(--bg);
-  border-radius: 4px;
-  font: inherit;
-  color: var(--fg);
-  cursor: pointer;
+  padding: 12px;
 }
-
-.plantuml-panzoom-toolbar__btn:hover {
-  background: var(--bg-elev);
-  border-color: var(--accent);
+.markdown-body pre.language-mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
 }
-
-.plantuml-panzoom-toolbar__btn--zoom-reset {
-  min-width: 56px;
-  font-variant-numeric: tabular-nums;
-}
-
-.plantuml-panzoom-toolbar__btn--open-window {
-  font-size: 14px;
-  color: var(--accent);
-}
-
-.plantuml-panzoom-toolbar__hint {
-  margin-left: 4px;
-  padding-left: 6px;
-  border-left: 1px solid var(--border);
-  color: var(--fg-muted);
-  font-size: 11px;
-  white-space: nowrap;
+.markdown-body pre.language-mermaid[data-mermaid-state='pending'] {
+  opacity: 0.5;
 }
 </style>

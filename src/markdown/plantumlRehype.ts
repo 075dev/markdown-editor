@@ -8,10 +8,15 @@ import plantumlEncoder from 'plantuml-encoder'
  * PlantUML rehype 插件：
  *
  * 扫描所有 `<pre><code class="language-plantuml">…</code></pre>`，
- * 将其替换为指向官方 PlantUML 渲染服务的 `<img>` 标签。
+ * 将其替换为指向 PlantUML 渲染服务的 `<img>` 标签。
  *
- * 渲染走 https://www.plantuml.com/plantuml（公开端点）。
- *   - 服务地址可通过配置覆盖（自部署 PlantUML server 时）。
+ * 渲染端点优先级：
+ *   1) 调用方传入 `serverUrl`（最优先）
+ *   2) Tauri 后端 `get_plantuml_server_url` —— 后端启动时会尝试拉一个
+ *      本地 java -jar 服务（端口 18080），成功就把它的 svg 端点前缀
+ *      暴露给前端。失败时返 None —— 走下一步。
+ *   3) 默认官方服务 https://www.plantuml.com/plantuml（公开端点）。
+ *
  *   - 渲染失败由浏览器原生 `<img>` 的 onerror 兜底显示源码占位。
  *
  * 设计原则：
@@ -21,8 +26,10 @@ import plantumlEncoder from 'plantuml-encoder'
  *     sanitize 后不会被解释为脚本。
  */
 
+import { isTauri } from '@/services/env'
+
 export interface PlantumlOptions {
-  /** PlantUML 渲染服务 base URL，默认官方服务 */
+  /** PlantUML 渲染服务 base URL，默认从后端探测，失败用官方 */
   serverUrl?: string
   /** 输出格式：svg（默认，可缩放） / png */
   format?: 'svg' | 'png'
@@ -30,10 +37,27 @@ export interface PlantumlOptions {
   className?: string
 }
 
-const DEFAULTS: Required<PlantumlOptions> = {
-  serverUrl: 'https://www.plantuml.com/plantuml',
+const DEFAULTS: Required<Omit<PlantumlOptions, 'serverUrl'>> = {
   format: 'svg',
   className: 'plantuml-diagram',
+}
+
+/**
+ * 异步探测 PlantUML 服务 URL：
+ *   - 后端优先（Tauri 自带本地 jar）
+ *   - 失败回退到官方服务
+ */
+export async function resolvePlantumlServerUrl(): Promise<string> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const url = await invoke<string | null>('get_plantuml_server_url')
+      if (url && url.length > 0) return url
+    } catch {
+      /* fall through */
+    }
+  }
+  return 'https://www.plantuml.com/plantuml'
 }
 
 /** 是否匹配 PlantUML 代码块 */
@@ -118,43 +142,62 @@ function buildFallbackPre(
  * 注意：必须在 `remarkRehype` 之后、`rehypeSanitize` 之前使用。
  */
 export const plantumlRehype: Plugin<[PlantumlOptions], Root, Root> = (options = {}) => {
-  const opts: Required<PlantumlOptions> = { ...DEFAULTS, ...options }
+  // serverUrl 现在是可选 —— 由调用方显式传入；不传时退化到 DEFAULTS 兜底。
+  const opts = {
+    serverUrl: options.serverUrl ?? 'https://www.plantuml.com/plantuml',
+    format: options.format ?? DEFAULTS.format,
+    className: options.className ?? DEFAULTS.className,
+  }
 
   const transformer = (tree: Root): void => {
-    visit(tree, 'element', (node: Element, index, parent) => {
-      if (!parent || index === undefined || index === null) return
-      // 我们要替换的是 <pre>，触发条件是其内部包含 language-plantuml <code>
-      if (node.tagName !== 'pre') return
+    try {
+      visit(tree, 'element', (node: Element, index, parent) => {
+        if (!parent || index === undefined || index === null) return
+        // 我们要替换的是 <pre>，触发条件是其内部包含 language-plantuml <code>
+        if (node.tagName !== 'pre') return
 
-      const codeChild = node.children.find(
-        (c): c is Element => c.type === 'element' && c.tagName === 'code',
-      )
-      if (!codeChild) return
-      if (!isPlantumlCode(codeChild)) return
+        const preChildren = (node.children ?? []) as ElementContent[]
+        const codeChild = preChildren.find(
+          (c): c is Element => c.type === 'element' && c.tagName === 'code',
+        )
+        if (!codeChild) return
+        if (!isPlantumlCode(codeChild)) return
 
-      const source = collectText(codeChild).trim()
-      if (!source) return
+        const source = collectText(codeChild).trim()
+        if (!source) return
 
-      // 直接把 <pre> 替换为 <div class="plantuml-container"><img/><pre.fallback/></div>
-      const url = buildImageUrl(source, opts)
-      const alt = `PlantUML diagram (${source.split('\n')[0]?.slice(0, 60) || 'diagram'})`
-      const img = buildImgNode(url, source, alt, opts.className)
-      // 保留 code 节点的 children（可能已被 plantumlHighlight 注入了 hl-* spans）
-      const fallback = buildFallbackPre(source, opts.className, codeChild.children)
+        const url = buildImageUrl(source, opts)
+        const alt = `PlantUML diagram (${source.split('\n')[0]?.slice(0, 60) || 'diagram'})`
+        const img = buildImgNode(url, source, alt, opts.className)
+        const fallback = buildFallbackPre(
+          source,
+          opts.className,
+          (codeChild.children ?? []) as ElementContent[],
+        )
 
-      const replacement: Element = {
-        type: 'element',
-        tagName: 'div',
-        properties: {
-          className: ['plantuml-container'],
-          'data-plantuml-state': 'loading',
-        } as Properties,
-        children: [img, fallback],
-      }
+        const replacement: Element = {
+          type: 'element',
+          tagName: 'div',
+          properties: {
+            className: ['plantuml-container'],
+            'data-plantuml-state': 'loading',
+          } as Properties,
+          children: [img, fallback],
+        }
 
-      const children = parent.children as ElementContent[]
-      children[index] = replacement
-    })
+        // 关键：parent.children 一定要保证替换后 *不出现* sparse hole。
+        // 因为 unist-util-visit 内部会在我们修改后的数组里递归（`'children' in node`），
+        // 如果某次替换留下了 undefined hole，递归就会拿到 undefined 触发 'in' 错误。
+        // 这里创建一个 *新数组* 替换整个 children，避免稀疏数组。
+        const parentChildren = (parent.children ?? []) as ElementContent[]
+        if (index < 0 || index >= parentChildren.length) return
+        const newChildren = parentChildren.slice()
+        newChildren[index] = replacement
+        ;(parent as unknown as { children: typeof newChildren }).children = newChildren
+      })
+    } catch (err) {
+      console.warn('[plantumlRehype] visit failed, skipping transformation:', err)
+    }
   }
 
   return transformer

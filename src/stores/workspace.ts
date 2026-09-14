@@ -8,6 +8,7 @@ import {
   listDirectory,
   watchFileExternal,
   unwatchFileExternal,
+  readTextFile as readTextFileRaw,
   type DirEntry,
 } from '@/services/fileService'
 
@@ -18,16 +19,51 @@ export interface OpenTab {
   savedContent: string
 }
 
-/**
- * 全局事件名：后端 Tauri 'file-external-change' 转发到浏览器后，
- * fileService 会派发 CustomEvent('mde:file-external-change')。
- * 任何组件都可以监听。
- */
 export const FILE_EXTERNAL_CHANGE_EVENT = 'mde:file-external-change'
+
+/**
+ * 文件树节点：在 DirEntry 基础上多了 children/expanded/loading 三个
+ * 状态。我们不在 store 初始化时一次性递归所有层级，
+ * 而是在用户展开目录时才去拉子节点——这跟主流编辑器（VSCode、IDEA）的
+ * 行为一致，对大工程也稳定。
+ */
+export interface TreeNode extends DirEntry {
+  /** 子节点（仅目录有效；初次为 null，等 expandNode 拉取后填充） */
+  children: TreeNode[] | null
+  /** 子节点是否正在加载 */
+  loading: boolean
+  /** 当前目录是否已展开（UI 状态） */
+  expanded: boolean
+}
+
+/**
+ * 把 listDirectory 的扁平 DirEntry[] 包成 TreeNode[]：
+ *   - 目录节点 children=null（懒加载）
+ *   - 文件节点 children=[]（永远不会再展开，约定空数组）
+ *   - 排序：目录在前、文件在后，名字按字母升序
+ */
+function entriesToTreeNodes(entries: DirEntry[]): TreeNode[] {
+  const sorted = [...entries].sort((a, b) => {
+    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  })
+  return sorted.map((entry) => ({
+    ...entry,
+    children: entry.isDir ? null : [],
+    loading: false,
+    expanded: false,
+  }))
+}
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const rootPath = ref<string | null>(null)
-  const tree = ref<DirEntry[]>([])
+  const tree = ref<TreeNode[]>([])
+  /**
+   * 缓存已经加载过 children 的目录路径 → 子节点。
+   * 这样离开再回到该目录时不用再次打文件系统。
+   * key 是目录绝对路径（与 TreeNode.path 同样形态）。
+   */
+  const treeChildrenCache = new Map<string, TreeNode[]>()
   const tabs = ref<OpenTab[]>([])
   const activeTabPath = ref<string | null>(null)
   const isDirty = computed(() =>
@@ -205,6 +241,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const dir = await pickWorkspaceDirectory()
     if (!dir) return
     rootPath.value = dir
+    // 切换工作区时清掉旧缓存——避免新旧根路径的 children 错位。
+    treeChildrenCache.clear()
     await refreshTree()
   }
 
@@ -213,7 +251,67 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       tree.value = []
       return
     }
-    tree.value = await listDirectory(rootPath.value)
+    const entries = await listDirectory(rootPath.value)
+    tree.value = entriesToTreeNodes(entries)
+  }
+
+  /**
+   * 在已有 tree 里按 path 找到节点；找不到返回 null。
+   * 路径用 TreeNode.path 与节点 path 等同（已经在 listDirectory 时拼好）。
+   */
+  function findNode(nodes: TreeNode[], path: string): TreeNode | null {
+    for (const node of nodes) {
+      if (node.path === path) return node
+      if (node.children) {
+        const hit = findNode(node.children, path)
+        if (hit) return hit
+      }
+    }
+    return null
+  }
+
+  /**
+   * 点目录节点：首次点展开，再次点折叠。展开时懒加载子节点。
+   */
+  async function toggleNode(path: string): Promise<void> {
+    const node = findNode(tree.value, path)
+    if (!node || !node.isDir) return
+    if (node.expanded) {
+      node.expanded = false
+      return
+    }
+    node.expanded = true
+    if (node.children !== null) return
+    // children === null ⇒ 首次展开，拉子目录
+    node.loading = true
+    try {
+      const cached = treeChildrenCache.get(path)
+      const entries = cached ?? (await listDirectory(path))
+      if (!cached) treeChildrenCache.set(path, entriesToTreeNodes(entries))
+      node.children = entriesToTreeNodes(entries)
+    } catch (err) {
+      console.warn('[workspace] expandNode failed:', err)
+      node.children = []
+      node.expanded = false
+    } finally {
+      node.loading = false
+    }
+  }
+
+  /**
+   * 点文件节点：读取内容并打开为标签。
+   * markdown 扩展名由调用方决定（这里对所有文本类都允许，简单一些）。
+   */
+  async function openFileFromPath(path: string): Promise<boolean> {
+    const content = await readTextFileRaw(path)
+    if (content === null) return false
+    upsertTab(path, content)
+    return true
+  }
+
+  /** 是否是 markdown 文件（用于决定要不要拦截 openFileFromPath） */
+  function isMarkdownPath(path: string): boolean {
+    return /\.(md|markdown|mdx)$/i.test(path)
   }
 
   return {
@@ -235,5 +333,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     saveAsActive,
     chooseWorkspace,
     refreshTree,
+    toggleNode,
+    openFileFromPath,
+    isMarkdownPath,
   }
 })

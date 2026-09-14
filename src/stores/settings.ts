@@ -24,6 +24,13 @@ interface PersistedSettings {
   monoFont: string
   fontSize: number
   sidebarCollapsed: boolean
+  /**
+   * 双栏状态下编辑区与预览区按比例同步滚动。
+   * - true：编辑器滚动 → 预览按比例跟；预览滚动 → 编辑器按比例跟
+   * - false：各自独立滚动
+   * 单栏（edit / preview）模式下不生效。
+   */
+  syncScroll: boolean
 }
 
 /**
@@ -123,6 +130,7 @@ function load(): PersistedSettings {
       monoFont: DEFAULT_MONO_FONT,
       fontSize: FONT_SIZE_DEFAULT,
       sidebarCollapsed: false,
+      syncScroll: true,
     }
   }
   try {
@@ -136,6 +144,7 @@ function load(): PersistedSettings {
         monoFont: DEFAULT_MONO_FONT,
         fontSize: FONT_SIZE_DEFAULT,
         sidebarCollapsed: false,
+        syncScroll: true,
       }
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>
@@ -154,6 +163,8 @@ function load(): PersistedSettings {
         typeof parsed.sidebarCollapsed === 'boolean'
           ? parsed.sidebarCollapsed
           : false,
+      syncScroll:
+        typeof parsed.syncScroll === 'boolean' ? parsed.syncScroll : true,
     }
   } catch {
     return {
@@ -164,6 +175,7 @@ function load(): PersistedSettings {
       monoFont: DEFAULT_MONO_FONT,
       fontSize: FONT_SIZE_DEFAULT,
       sidebarCollapsed: false,
+      syncScroll: true,
     }
   }
 }
@@ -224,10 +236,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const monoFont = ref<string>(initial.monoFont)
   const fontSize = ref<number>(initial.fontSize)
   const sidebarCollapsed = ref<boolean>(initial.sidebarCollapsed)
+  const syncScroll = ref<boolean>(initial.syncScroll)
 
   watch(
-    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed],
-    ([t, r, v, sf, mf, fs, sc]) => {
+    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed, syncScroll],
+    ([t, r, v, sf, mf, fs, sc, sy]) => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(
           STORAGE_KEY,
@@ -239,6 +252,7 @@ export const useSettingsStore = defineStore('settings', () => {
             monoFont: mf,
             fontSize: fs,
             sidebarCollapsed: sc,
+            syncScroll: sy,
           }),
         )
       }
@@ -292,6 +306,14 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarCollapsed.value = value
   }
 
+  function setSyncScroll(value: boolean) {
+    syncScroll.value = value
+  }
+
+  function toggleSyncScroll() {
+    syncScroll.value = !syncScroll.value
+  }
+
   function resetAll() {
     theme.value = 'system'
     splitRatio.value = 0.5
@@ -300,6 +322,7 @@ export const useSettingsStore = defineStore('settings', () => {
     monoFont.value = DEFAULT_MONO_FONT
     fontSize.value = FONT_SIZE_DEFAULT
     sidebarCollapsed.value = false
+    syncScroll.value = true
   }
 
   return {
@@ -310,6 +333,7 @@ export const useSettingsStore = defineStore('settings', () => {
     monoFont,
     fontSize,
     sidebarCollapsed,
+    syncScroll,
     toggleTheme,
     setTheme,
     setViewMode,
@@ -319,6 +343,8 @@ export const useSettingsStore = defineStore('settings', () => {
     setFontSize,
     toggleSidebar,
     setSidebarCollapsed,
+    setSyncScroll,
+    toggleSyncScroll,
     resetAll,
   }
 })

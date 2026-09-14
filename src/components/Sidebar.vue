@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import FolderTreeNode from '@/components/FolderTreeNode.vue'
 
 const workspace = useWorkspaceStore()
 
@@ -23,16 +24,12 @@ function handleClose(path: string) {
     <section class="sidebar__section">
       <header class="sidebar__header">目录</header>
       <div class="sidebar__root">{{ rootLabel }}</div>
-      <ul v-if="workspace.tree.length" class="sidebar__list">
-        <li
-          v-for="entry in workspace.tree"
-          :key="entry.path"
-          class="sidebar__item"
-          :class="{ 'sidebar__item--dir': entry.isDir }"
-        >
-          <span class="sidebar__icon">{{ entry.isDir ? '📁' : '📄' }}</span>
-          <span class="sidebar__name">{{ entry.name }}</span>
-        </li>
+      <ul v-if="workspace.tree.length" class="sidebar__tree">
+        <FolderTreeNode
+          v-for="node in workspace.tree"
+          :key="node.path"
+          :node="node"
+        />
       </ul>
       <p v-else class="sidebar__empty">
         在桌面端打开目录后会显示文件树。
@@ -99,7 +96,7 @@ function handleClose(path: string) {
   word-break: break-all;
 }
 
-.sidebar__list,
+.sidebar__tree,
 .sidebar__tabs {
   list-style: none;
   padding: 0;
@@ -109,7 +106,6 @@ function handleClose(path: string) {
   gap: 2px;
 }
 
-.sidebar__item,
 .sidebar__tab {
   display: flex;
   align-items: center;
@@ -121,7 +117,6 @@ function handleClose(path: string) {
   user-select: none;
 }
 
-.sidebar__item:hover,
 .sidebar__tab:hover {
   background: var(--bg-elev);
 }

@@ -33,7 +33,10 @@ describe('renderMarkdown — PlantUML inline highlighting', () => {
   it('does not affect non-PlantUML code blocks', async () => {
     const md = '```js\nclass Foo {}\n```'
     const html = await renderMarkdown(md)
-    // shiki 在 jsdom 下被跳过；js 代码块应保留为普通 <pre><code> 不带 hl-*
-    expect(html).not.toContain('hl-keyword')
+    // 类名 `class` 是 JS/TS 关键字，codeHighlight 应给 span.hl-keyword 包起来；
+    // 但不会生成 PlantUML 专属 hl-*（hl-directive/hl-arrow）。
+    expect(html).toContain('hl-keyword')
+    expect(html).not.toContain('hl-directive')
+    expect(html).not.toContain('hl-arrow')
   })
 })
