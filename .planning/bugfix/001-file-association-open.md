@@ -68,6 +68,7 @@ review: approved
 - 修复设计避开"setup emit + 前端 listen"启动竞态:改用前端就绪后 invoke 取走(take 一次性),静态变量写入发生在 Builder::run() 之前,任意时序都取得到。
 - 前端 `workspace.openFileFromPath`(文件树既有能力)直接复用,修复只做"把路径递给它",增量最小。
 - 测试 helper 的 `impl Iterator` 隐式捕获生命周期编译失败一次(E0700),显式标注 `+ 'a` 解决,与根因无关。
+- **打包实测(2026-09-15,补 N3 部分)**:fileAssociations 的中文描述触发 WiX `LGHT0311`(MSI 数据库 codepage 1252 无中文字符),MSI 打包失败;name/description 改英文后 MSI + NSIS 双双打包成功(安装器 en-US 默认 codepage 与非 ASCII 字符串冲突,tauri wix 的已知约束)。d2c7774
 
 ---
 
