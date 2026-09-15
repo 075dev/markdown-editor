@@ -57,3 +57,6 @@ event_messages_count: 1
 - 文档树: .qiling/docs/(chapter-01 为 ql-scan 初始化快照)
 - 现有 IPC 面: 6 个 tauri command + 1 个事件(file-external-change)
 - 产出: .planning/context/{openapi.yaml, event-flow.md, constitution.md}
+
+## 缺陷修复(不推进 phase)
+- bugfix-001(2026-09-15): 默认打开方式启动时不打开文档 —— 状态 fixed,评审 approved(0 critical)。修复 a5582d4:冷启 argv 暂存 + take_startup_open_path + HomeView 启动打开 + fileAssociations 打包声明。遗留:暖启动 argv 转发(N2,建议 tauri-plugin-single-instance)、安装级双击实测(N3)。详见 .planning/bugfix/001-file-association-open.md

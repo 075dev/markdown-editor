@@ -255,3 +255,4 @@ b9f369a chore: 交付前收尾(STATE reviewed + 评审第 2 轮报告入库)
 | 日期 | 操作 | 说明 |
 |------|------|------|
 | 2026-09-15T01:16:27Z | 自动生成 | `/ql-deliver` 后由器灵产出(PR #1) |
+| 2026-09-15 | fix | 默认打开方式启动时消费文档路径(冷启 argv → take_startup_open_path → 打开标签;含 fileAssociations 打包声明)。bugfix-001,评审 approved,遗留暖启动转发 |
