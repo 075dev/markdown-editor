@@ -1,8 +1,8 @@
 ---
-verdict: criticals_found
-reviewed_at: 2026-09-14T01:25:00+08:00
-round: 1
-reviewed_range: bc234d2..0a511b3
+verdict: approved
+reviewed_at: 2026-09-15T01:50:17+08:00
+round: 2
+reviewed_range: 0a511b3..fe679f2 (round 2 复审增量;round 1 全量为 bc234d2..0a511b3,见下文第 1 轮报告)
 waived_by:
 waive_reason:
 inputs:
@@ -113,6 +113,36 @@ review_tier: THOROUGH (30 文件 > 20,涉及状态机/错误处理路径;全量�
 
 (待第 2 轮评审追加:F1-F4 修复后受影响区域复审;F5-F7 可随修复顺带,不单独设门。)
 
+### 第 2 轮(round 2,2026-09-15)—— 复审范围 0a511b3..fe679f2
+
+> 只复审第 1 轮 F1-F4 修复区域 + 新 critical 排查;round 1 全量范围 bc234d2..0a511b3 已审不重复。修复提交:071cfad(C1)/ 52e0a1f(F2)/ 464e90f(F3)/ 06e9134(F4)/ fe679f2(报告,纯 .planning 文档)。
+
+#### 裁定:`approved`(第 1 轮 critical C1 已修复并证实,无新 critical)
+
+**结论一:契约合规 —— pass**
+
+| 项 | 证据(亲核,行号@06e9134 = @fe679f2,代码未再变) |
+|----|------|
+| F1 装配真实生效 | src/views/HomeView.vue:49 setup 中 `useAutoSave()`;清理由 useAutoSave.ts:195-206 onScopeDispose 承接(stop + stopEnabledWatch + cancelPending + clearRetries + blur 反注册);装配测试 src/views/HomeView.autosave.test.ts **亲跑 3/3 PASS(2.08s)**——mount 真实 HomeView(仅 stub 子组件模板,setup 照跑),不 mock composable 本身,只 mock fileService IO 边界,断言 `saveMarkdownFile('hello world','/a/demo.md')`,真实锁定 mount→编辑→防抖→写盘链路,无"测试也装配错了"的自我循环 |
+| F2 三处全堵 | 防抖到点回调复查 useAutoSave.ts:147;重试回调复查 :117;关闭瞬间 watch(:186-193)cancelPending+clearRetries;另有既有 onBlur 入口检查 :157。runAutoSaveRound(:126)本身无检查但其全部两个调用入口(防抖回调/onBlur)均已被堵,无旁路;重开开关后由下次输入/失焦重新触发防抖,无"重开不恢复"缺陷。极端时序(重试回调先于 watch 微任务生效)有专门用例兜底(useAutoSave.test.ts「重试回调先于 watch 生效」) |
+| F3 闭环正确 | AutoSaveBanner.vue:17 conflictTabs 逐条渲染;文案 conflictText(tab) 与按钮 keepMine(tab)/useDisk(tab)(:56/:64)同源同一 tab 对象;store 决策按 path 查找(workspace.ts:148、:177-178),目标非 conflict 时 return false;测试断言点击 b.md 条目仅写盘 b.md、c.md 保持 conflict、活动标签未被牵动 |
+| F4 竞态严密 | workspace.ts:177-206:先 readTextFileRaw(:183),失败/null → 保持 Conflict + error 通知;成功后重查目标仍 conflict(:197-199)才落 content/savedContent/Clean;读盘期间切标签按 path 决策不受影响,关标签 find 不到即放弃。EditorPane.vue:94 `detail.content ?? null` 消费携带内容免二次读盘(`??` 对空串正确);无 content 的外部变更链路(workspace.ts:142 reloadFromDisk(path))回退自读盘,既有行为不变 |
+
+**结论二:正确性 —— pass**
+
+- 无新 critical。既有用例仅 3 处因 resolveConflictUseDisk 签名异步化改为 await(verification.md R6 公开声明,断言意图不变,非悄悄改变);R2 全量 214/214 = 基线 201 + 13 新增,只增不减。
+- unhandled rejection 排查:resolveConflictUseDisk 全部异常路径在 try/catch 内,Banner 侧 `void` 调用安全;keepMine 内部原有 try/catch。
+- 完成声明探测三键:stale_state 无(验证于 06e9134,其后 fe679f2 仅改 .planning 文档,亲核 `git diff 06e9134..HEAD --stat`);dirty_worktree 无(`git status --porcelain` 空);misleading_success_output 无(装配测试断言落在写盘参数与调用次数上,非空转)。
+- 对抗检查后不立案两项(记录理由):①onBlur 已开始的 async 保存循环无法被关闭瞬间中断——物理窗口毫秒级且 clearRetries 已断后续重试,规范场景 9 意图为「关闭后不产生新保存」,onBlur 入口 :157 已满足;②useAutoSave 在无 scope 环境下 stopEnabledWatch 不随 dispose——与既有 stop watch 同模式,生产装配在 HomeView setup 内必有 scope,测试均经 dispose 清理。
+
+**结论三:代码库一致性 —— pass**
+
+- 修复注释统一带「修复 F2/F3/F4」标记可追溯至评审账本;Banner 模板 container→row 拆分沿用既有 BEM 类名(`__row`),样式迁移无残留死类;测试组织(真实 store + mock service + fake timers + flushPromises)与既有 watch.test/AutoSaveBanner.test 惯例一致。
+- round 1 遗留 F5-F8(minor)维持 DEFERRED,不阻断;F6 注释漂移(EditorPane.vue:84-87 一带)本轮 EditorPane 改动未触碰该注释,仍在。
+
+**验证摘要可信度抽查**:R3(装配测试)已亲跑复核 PASS;R4/R5/R6 的断言经 diff 通读确认真实(调用参数/标签状态/通知文案/事件 detail),与「已 PASS 不重跑」原则一致未重跑;R1 vue-tsc 0 错为声明采信(4 个修复提交各自提交前复跑,有过程记录)。
+
+
 
 ### 处置账本追加(round 1 修复轮,append-only)
 
@@ -128,3 +158,16 @@ review_tier: THOROUGH (30 文件 > 20,涉及状态机/错误处理路径;全量�
 | F6 | minor | DEFERRED | EditorPane reload 注释漂移,本轮未触碰该注释,留待文档清理 | coordinator | 1 |
 | F7 | minor | DEFERRED | isRetryable 全局 lastSaveError 耦合,本轮未动;继续观察 | coordinator | 1 |
 | F8 | minor | DEFERRED | watchFileExternal unlisten 泄漏(PRE-EXISTING),超出本修复轮清单,建议下一阶段修复 | coordinator | 1 |
+
+### 处置账本追加(round 2 复审,append-only)
+
+> 第 2 轮对 F1-F4 修复的独立复审裁定;上方 round 1 原表行保留不动。行号以 HEAD = fe679f2 为准(= 06e9134,代码未再变)。
+
+| # | severity | disposition | evidence | decided_by | round |
+|---|----------|-------------|----------|------------|-------|
+| F1 | critical | VERIFIED(维持 FIXED) | HomeView.vue:49@fe679f2 setup 装配 + useAutoSave.ts:195-206 onScopeDispose 清理;装配测试亲跑 3/3 PASS(2.08s),真实链路非自我循环 | reviewer | 2 |
+| F2 | major | VERIFIED(维持 FIXED) | useAutoSave.ts:147(防抖回调复查)+ :117(重试回调复查)+ :186-193(关闭瞬间 watch 撤销)+ :157(onBlur 入口,既有);runAutoSaveRound 两调用入口均已堵,无旁路;极端时序有用例兜底 | reviewer | 2 |
+| F3 | major | VERIFIED(维持 FIXED) | AutoSaveBanner.vue:17/:56/:64@fe679f2 文案与按钮同源各 tab;workspace.ts:148/:177-178 按 path 决策;多标签用例断言只作用各自标签 | reviewer | 2 |
+| F4 | major | VERIFIED(维持 FIXED) | workspace.ts:177-206@fe679f2 先读盘后落 Clean,失败/null 保持 Conflict;:197-199 竞态重查(切标签/关标签);EditorPane.vue:94 消费携带 content 免二次读盘,外部变更链路 workspace.ts:142 行为不变;5 例真 clean 测试断言真实 | reviewer | 2 |
+| F5-F8 | minor | DEFERRED(维持) | 复审确认本轮修复未触及 F5-F8 区域,无恶化;随下一阶段清理 | reviewer | 2 |
+| F9+ | — | 无新发现 | 新 critical 0;新 non-critical 0(两项对抗疑点经取证不立案,理由见第 2 轮结论二) | reviewer | 2 |

@@ -3,7 +3,12 @@ ql_state_version: '1.0'
 current_phase: 1
 work_branch: ql/phase-1-autosave
 base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
-status: skeleton_complete
+status: reviewed
+review_verdict: approved
+review_rounds: 2
+reviewed_range: bc234d2..fe679f2
+waves_executed: 4
+last_activity: fill + verification + review complete
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
