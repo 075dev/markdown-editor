@@ -125,18 +125,18 @@ export function createMarkdownEditor(
         '&': {
           height: '100%',
           backgroundColor: 'var(--bg)',
-          color: 'var(--fg)',
+          color: 'var(--text-1)',
         },
         '.cm-content': { padding: '16px 12px' },
         '.cm-gutters': {
           backgroundColor: 'var(--bg-sidebar)',
-          color: 'var(--fg-muted)',
+          color: 'var(--text-2)',
           border: 'none',
         },
         '.cm-activeLine': { backgroundColor: 'var(--bg-elev)' },
-        '.cm-activeLineGutter': { backgroundColor: 'var(--bg-elev)', color: 'var(--fg)' },
+        '.cm-activeLineGutter': { backgroundColor: 'var(--bg-elev)', color: 'var(--text-1)' },
         '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
-        '.cm-selectionBackground, ::selection': { backgroundColor: 'rgba(37, 99, 235, 0.2)' },
+        '.cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection)' },
       }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {

@@ -17,7 +17,7 @@
   /* 文字三级 */
   --text-1: #1a1d21;
   --text-2: #5c6370;
-  --text-3: #9aa1ac;
+  --text-3: #6e7580;
   /* 边框 */
   --border: #e6e8eb;
   --border-strong: #d3d7dd;
@@ -28,7 +28,7 @@
   /* 状态 */
   --danger: #dc2626;
   --warning: #d97706;
-  --success: #16a34a;
+  --success: #15803d;
   /* 代码块 */
   --code-bg: #f6f7f9;
   --code-border: #e2e5ea;
@@ -66,7 +66,7 @@
   --bg-input: #ffffff;
   --text-1: #1a1d21;
   --text-2: #5c6370;
-  --text-3: #9aa1ac;
+  --text-3: #6e7580;
   --border: #e6e8eb;
   --border-strong: #d3d7dd;
   --accent: #4f46e5;
@@ -74,7 +74,7 @@
   --accent-text: #4338ca;
   --danger: #dc2626;
   --warning: #d97706;
-  --success: #16a34a;
+  --success: #15803d;
   --code-bg: #f6f7f9;
   --code-border: #e2e5ea;
   --hl-keyword: #7c3aed;
@@ -99,7 +99,7 @@
   --bg-input: #1a1e27;
   --text-1: #e8eaf0;
   --text-2: #9aa3b5;
-  --text-3: #626b7d;
+  --text-3: #747d8f;
   --border: #262b37;
   --border-strong: #39404f;
   --accent: #6d8bff;
@@ -132,7 +132,7 @@
   --bg-input: #101014;
   --text-1: #d6d9de;
   --text-2: #8f949d;
-  --text-3: #5a5e66;
+  --text-3: #72767e;
   --border: #1c1e22;
   --border-strong: #2e3138;
   --accent: #6e9fff;
@@ -165,7 +165,7 @@
   --bg-input: #fdf9f0;
   --text-1: #3d3629;
   --text-2: #6f6654;
-  --text-3: #a29880;
+  --text-3: #786e56;
   --border: #e4dac4;
   --border-strong: #d0c3a5;
   --accent: #a3692d;
@@ -198,7 +198,7 @@
   --bg-input: #f7f9fb;
   --text-1: #24303f;
   --text-2: #566374;
-  --text-3: #8b98a9;
+  --text-3: #616e7f;
   --border: #d4dce5;
   --border-strong: #bcc7d4;
   --accent: #2e6f9e;
@@ -231,7 +231,7 @@
   --bg-input: #30262b;
   --text-1: #f0e4e8;
   --text-2: #b39aa3;
-  --text-3: #7d666e;
+  --text-3: #957e86;
   --border: #3a2d33;
   --border-strong: #524049;
   --accent: #e8758f;
@@ -268,7 +268,7 @@
     --bg-input: #1a1e27;
     --text-1: #e8eaf0;
     --text-2: #9aa3b5;
-    --text-3: #626b7d;
+    --text-3: #747d8f;
     --border: #262b37;
     --border-strong: #39404f;
     --accent: #6d8bff;
@@ -289,6 +289,7 @@
     --selection: rgba(109, 139, 255, 0.28);
     --scrollbar: #333a48;
     --scrollbar-hover: #454e60;
+    --radius: 6px;
   }
 }
 
@@ -388,4 +389,32 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* ---------- CodeMirror Markdown 语法 class ----------
+ * 由 src/editor/markdownLanguage.ts 的 HighlightStyle 输出,
+ * 此前只有 class 无样式;统一走主题 token。 */
+.cm-md-heading {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.cm-md-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.cm-md-url {
+  color: var(--accent-text);
+}
+
+.cm-md-code {
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  background: var(--code-bg);
+  border-radius: calc(var(--radius) - 3px);
+}
+
+.cm-md-list {
+  color: var(--accent-text);
 }

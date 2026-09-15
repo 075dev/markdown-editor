@@ -59,14 +59,10 @@ export const selectionLineFill = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations },
 )
 
-/** 配套 CSS。背景用与 drawSelection 颜色系匹配但偏淡，叠加时显示为更饱和但仍可辨识。 */
+/** 配套 CSS。淡强调底(--accent-soft),叠加在选区上仍可辨识;
+ * 颜色走主题 token,六主题 + system 自动跟随(无需 cm-dark 分支)。 */
 export const selectionLineFillTheme = EditorView.theme({
   '.cm-line.cm-line--mde-selected': {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    boxShadow: 'inset 0 0 0 9999px rgba(37, 99, 235, 0.04)',
-  },
-  // 暗色主题：把上面的浅蓝换成更深的版本
-  '&.cm-dark .cm-line.cm-line--mde-selected, &.cm-dark .cm-line.cm-line--mde-selected': {
-    backgroundColor: 'rgba(99, 153, 244, 0.12)',
+    backgroundColor: 'var(--accent-soft)',
   },
 })

@@ -215,14 +215,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   text-align: center;
   padding: 32px;
 }
 
 .home__empty h2 {
   margin: 0;
-  color: var(--fg);
+  color: var(--text-1);
 }
 
 .home__hint {

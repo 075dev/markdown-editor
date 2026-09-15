@@ -76,7 +76,7 @@ function onKey(e: KeyboardEvent) {
   align-items: center;
   gap: 4px;
   padding: 3px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   font-size: 13px;
   cursor: pointer;
   user-select: none;
@@ -95,7 +95,7 @@ function onKey(e: KeyboardEvent) {
   display: inline-block;
   width: 12px;
   text-align: center;
-  color: var(--fg-muted);
+  color: var(--text-2);
   font-size: 10px;
   transition: transform 0.1s ease;
 }
@@ -120,7 +120,7 @@ function onKey(e: KeyboardEvent) {
 }
 
 .sidebar__loading {
-  color: var(--fg-muted);
+  color: var(--text-2);
   font-size: 11px;
 }
 

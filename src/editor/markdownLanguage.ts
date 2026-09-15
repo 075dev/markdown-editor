@@ -27,7 +27,7 @@ export function markdownExtensions(): Extension[] {
     { tag: t.url, class: 'cm-md-url' },
     { tag: t.monospace, class: 'cm-md-code' },
     { tag: t.list, class: 'cm-md-list' },
-    { tag: t.quote, class: 'cm-md-quote', color: 'var(--fg-muted)', fontStyle: 'italic' },
+    { tag: t.quote, class: 'cm-md-quote', color: 'var(--text-2)', fontStyle: 'italic' },
   ])
 
   return [md, syntaxHighlighting(highlighter)]

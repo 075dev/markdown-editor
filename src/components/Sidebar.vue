@@ -87,12 +87,12 @@ function handleClose(path: string) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-muted);
+  color: var(--text-2);
 }
 
 .sidebar__root {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   word-break: break-all;
 }
 
@@ -111,7 +111,7 @@ function handleClose(path: string) {
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   font-size: 13px;
   cursor: pointer;
   user-select: none;
@@ -142,9 +142,9 @@ function handleClose(path: string) {
   border: none;
   background: transparent;
   font-size: 14px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .sidebar__tab-close:hover {
@@ -154,7 +154,7 @@ function handleClose(path: string) {
 
 .sidebar__empty {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   margin: 0;
 }
 </style>

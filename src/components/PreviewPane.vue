@@ -124,7 +124,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   border-bottom: 1px solid var(--border);
   background: var(--bg-elev);
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
 }
 
 .preview-pane__body {
@@ -141,7 +141,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 .markdown-body h3 {
   margin-top: 1.4em;
   margin-bottom: 0.6em;
-  color: var(--fg);
+  color: var(--text-1);
 }
 
 .markdown-body p {
@@ -152,14 +152,15 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   font-family: var(--font-mono);
   background: var(--code-bg);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: calc(var(--radius) - 3px);
   font-size: 0.92em;
 }
 
 .markdown-body pre {
   background: var(--code-bg);
+  border: 1px solid var(--code-border);
   padding: 12px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: auto;
 }
 
@@ -168,46 +169,39 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   padding: 0;
 }
 
-/* Shiki 双主题：默认显示 light，dark 模式下显示 dark。 */
-.markdown-body pre code span {
-  color: var(--shiki-light);
-}
-
-@media (prefers-color-scheme: dark) {
-  .markdown-body pre code span {
-    color: var(--shiki-dark);
-  }
-}
-
-/* PlantUML 自写高亮：关键字、指令、箭头、注释。 */
+/* 语法高亮五色走主题 token(--hl-*),天然跟随六主题切换。
+ * hl-directive / hl-arrow 为 PlantUML 高亮专用 class,语义分别近似
+ * 关键字与操作符,复用对应 token。 */
 .markdown-body .hl-keyword {
-  color: #d73a49;
+  color: var(--hl-keyword);
   font-weight: 600;
 }
+.markdown-body .hl-string {
+  color: var(--hl-string);
+}
+.markdown-body .hl-number {
+  color: var(--hl-number);
+}
+.markdown-body .hl-operator {
+  color: var(--hl-operator);
+}
 .markdown-body .hl-directive {
-  color: #6f42c1;
+  color: var(--hl-keyword);
   font-weight: 600;
 }
 .markdown-body .hl-arrow {
-  color: #005cc5;
+  color: var(--hl-number);
 }
 .markdown-body .hl-comment {
-  color: #6a737d;
+  color: var(--hl-comment);
   font-style: italic;
-}
-
-@media (prefers-color-scheme: dark) {
-  .markdown-body .hl-keyword { color: #ff7b72; }
-  .markdown-body .hl-directive { color: #d2a8ff; }
-  .markdown-body .hl-arrow { color: #79c0ff; }
-  .markdown-body .hl-comment { color: #8b949e; }
 }
 
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   margin: 0.8em 0;
   padding: 4px 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   background: var(--bg-elev);
 }
 
@@ -241,7 +235,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   margin: 1em 0;
   padding: 12px;
   background: var(--bg-elev);
-  border-radius: 6px;
+  border-radius: var(--radius);
   text-align: center;
   overflow: hidden;
   /*
@@ -272,6 +266,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 .markdown-body .plantuml-diagram {
   display: inline-block;
   max-width: 100%;
+  /* 功能性白底(非主题色):PlantUML 服务端渲染的 PNG 为白底,衬底必须与其一致 */
   background: #ffffff;
   user-select: none;
   -webkit-user-drag: none;

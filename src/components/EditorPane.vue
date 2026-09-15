@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   padding: 4px 16px;
   font-size: 12px;
-  background: var(--danger, #b91c1c);
-  color: #fff;
+  background: var(--danger);
+  color: var(--bg);
 }
 </style>

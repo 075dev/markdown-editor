@@ -113,18 +113,18 @@ onBeforeUnmount(() => {
   padding: 4px;
   margin: 0;
   list-style: none;
-  background: var(--bg-elev, #2b2b2b);
-  color: var(--fg, #e5e5e5);
-  border: 1px solid var(--border, #444);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--bg-elev);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
   font-size: 13px;
   user-select: none;
 }
 
 .ctx-menu__item {
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   cursor: pointer;
   white-space: nowrap;
   /* 避免点击后还残留 :focus 视觉 —— 把它移走 */
@@ -132,8 +132,8 @@ onBeforeUnmount(() => {
 }
 
 .ctx-menu__item:hover {
-  background: var(--accent, #5a8dee);
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .ctx-menu__item.is-disabled {

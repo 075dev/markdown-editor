@@ -98,8 +98,8 @@ function dismissNotice() {
   flex-direction: column;
   gap: 4px;
   padding: 8px 16px;
-  background: var(--danger, #b91c1c);
-  color: #fff;
+  background: var(--danger);
+  color: var(--bg);
   font-size: 13px;
 }
 
@@ -120,18 +120,21 @@ function dismissNotice() {
   font-size: 12px;
   padding: 4px 12px;
   background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 4px;
+  color: var(--bg);
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
 .autosave-banner__btn--primary {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg);
+  color: var(--danger);
+  border-color: var(--bg);
 }
 
 .autosave-banner__btn:hover {
-  border-color: #fff;
+  border-color: var(--bg);
+  box-shadow: var(--shadow-1);
 }
 
 .autosave-notice {
@@ -141,15 +144,15 @@ function dismissNotice() {
   gap: 12px;
   padding: 6px 16px;
   font-size: 12px;
-  color: #fff;
+  color: var(--bg);
 }
 
 .autosave-notice--error {
-  background: var(--danger, #b91c1c);
+  background: var(--danger);
 }
 
 .autosave-notice--info {
-  background: var(--ok, #15803d);
+  background: var(--success);
 }
 
 .autosave-notice__close {
@@ -157,9 +160,9 @@ function dismissNotice() {
   font-size: 12px;
   padding: 2px 8px;
   background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 4px;
+  color: var(--bg);
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 </style>

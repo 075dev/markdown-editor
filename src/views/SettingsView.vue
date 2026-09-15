@@ -398,7 +398,7 @@ onMounted(() => {
   height: 100vh;
   width: 100%;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   overflow: hidden;
 }
 
@@ -415,7 +415,7 @@ onMounted(() => {
 .settings__back,
 .settings__reset {
   font: inherit;
-  color: var(--fg);
+  color: var(--text-1);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -454,7 +454,7 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-muted);
+  color: var(--text-2);
   margin: 0 0 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
@@ -480,7 +480,7 @@ onMounted(() => {
 
 .settings__row-hint {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
 }
 
 .settings__current {
@@ -648,7 +648,7 @@ onMounted(() => {
   font: inherit;
   padding: 6px 14px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 16px;
   cursor: pointer;
@@ -669,7 +669,7 @@ onMounted(() => {
   font-size: 12px;
   padding: 2px 8px;
   background: var(--bg);
-  color: var(--fg-muted);
+  color: var(--text-2);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
@@ -677,7 +677,7 @@ onMounted(() => {
 
 .settings__mini:hover {
   border-color: var(--accent);
-  color: var(--fg);
+  color: var(--text-1);
 }
 
 .settings__select {
@@ -685,7 +685,7 @@ onMounted(() => {
   min-width: 200px;
   padding: 6px 10px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 4px;
   font: inherit;
@@ -708,7 +708,7 @@ onMounted(() => {
   min-width: 200px;
   padding: 6px 10px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 4px;
   font: inherit;
@@ -737,7 +737,7 @@ onMounted(() => {
 .settings__note {
   margin: 0;
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   text-align: center;
 }
 </style>
