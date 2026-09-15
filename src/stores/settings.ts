@@ -1,10 +1,37 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-export type Theme = 'light' | 'dark' | 'system'
+/** 六套预设主题(system 之外);新增主题时须同步扩展 global.css 的 token 块 */
+export const THEMES = ['light', 'dark', 'oled', 'paper', 'bluegray', 'rose'] as const
+export type ThemePreset = (typeof THEMES)[number]
+export type Theme = ThemePreset | 'system'
 export type ViewMode = 'split' | 'edit' | 'preview'
 
-const STORAGE_KEY = 'mde:settings:v5'
+/** 主题显示名(设置页卡片复用) */
+export const THEME_LABELS: Record<Theme, string> = {
+  light: '浅色',
+  dark: '深色',
+  oled: '墨黑',
+  paper: '纸张',
+  bluegray: '蓝灰',
+  rose: '玫瑰',
+  system: '跟随系统',
+}
+
+export function isTheme(value: unknown): value is Theme {
+  if (typeof value !== 'string') return false
+  return value === 'system' || (THEMES as readonly string[]).includes(value)
+}
+
+/** 非法持久化值回落 'light';缺省(无字段)回落 'system'(跟随 OS) */
+function resolveTheme(value: unknown): Theme {
+  if (value === undefined || value === null || value === '') return 'system'
+  return isTheme(value) ? value : 'light'
+}
+
+export const STORAGE_KEY = 'mde:settings:v6'
+/** v5 → v6:读不到 v6 时尝试 v5(theme 保留合法值,其余字段透传) */
+export const LEGACY_STORAGE_KEY = 'mde:settings:v5'
 export const FONT_SIZE_MIN = 10
 export const FONT_SIZE_MAX = 24
 export const FONT_SIZE_DEFAULT = 14
@@ -143,7 +170,8 @@ function load(): PersistedSettings {
     }
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
     if (!raw) {
       return {
         theme: 'system',
@@ -159,7 +187,7 @@ function load(): PersistedSettings {
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>
     return {
-      theme: (parsed.theme as Theme) ?? 'system',
+      theme: resolveTheme(parsed.theme),
       splitRatio:
         typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
       viewMode: (parsed.viewMode as ViewMode) ?? 'split',
@@ -201,7 +229,7 @@ export function clampFontSize(size: number): number {
 }
 
 /**
- * 把当前主题写到 <html data-theme="light|dark"> 上。
+ * 把当前主题写到 <html data-theme> 上(六预设主题 + system 移除属性)。
  * CSS 用 [data-theme=...] 选择器覆盖 `:root` 默认变量。
  * theme === 'system' 时只移除属性，让浏览器跟随 OS。
  */
@@ -242,6 +270,9 @@ function applyToDocument(
   }
 }
 
+/** theme-anim 类的移除定时器(模块级,重复切换时重置) */
+let themeAnimTimer: ReturnType<typeof setTimeout> | null = null
+
 export const useSettingsStore = defineStore('settings', () => {
   const initial = load()
   const theme = ref<Theme>(initial.theme)
@@ -278,13 +309,29 @@ export const useSettingsStore = defineStore('settings', () => {
     { deep: true, immediate: true },
   )
 
+  /** 切换主题时短暂加 theme-anim 类(~250ms)让配色 200ms 平滑过渡;
+   * 初始化路径(store 创建)不经过此函数,避免首屏闪烁。 */
+  function animateThemeChange() {
+    if (typeof document === 'undefined') return
+    const root = document.documentElement
+    root.classList.add('theme-anim')
+    if (themeAnimTimer !== null) clearTimeout(themeAnimTimer)
+    themeAnimTimer = setTimeout(() => {
+      root.classList.remove('theme-anim')
+      themeAnimTimer = null
+    }, 250)
+  }
+
   function toggleTheme() {
+    // 循环顺序保持既有语义(light → dark → system);其余四主题经设置页卡片选择
     const order: Theme[] = ['light', 'dark', 'system']
     const idx = order.indexOf(theme.value)
+    animateThemeChange()
     theme.value = order[(idx + 1) % order.length]
   }
 
   function setTheme(value: Theme) {
+    animateThemeChange()
     theme.value = value
   }
 

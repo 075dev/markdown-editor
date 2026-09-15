@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore, STORAGE_KEY } from '@/stores/settings'
 
 /**
  * 自动保存设置字段(ql Phase 1 骨架):
@@ -51,7 +51,7 @@ describe('settings.autoSaveEnabled', () => {
     const s = useSettingsStore()
     s.setAutoSaveEnabled(true)
     await new Promise((r) => setTimeout(r, 0))
-    const raw = localStorage.getItem('mde:settings:v5')
+    const raw = localStorage.getItem(STORAGE_KEY)
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!)
     expect(parsed.autoSaveEnabled).toBe(true)
@@ -76,7 +76,7 @@ describe('settings.autoSaveEnabled', () => {
 
   it('legacy storage without autoSaveEnabled falls back to false', () => {
     localStorage.setItem(
-      'mde:settings:v5',
+      STORAGE_KEY,
       JSON.stringify({ theme: 'dark', splitRatio: 0.5, viewMode: 'split' }),
     )
     setActivePinia(createPinia())
@@ -90,7 +90,7 @@ describe('settings.autoSaveEnabled(填充阶段补充:持久化路径全覆盖)'
     const s = useSettingsStore()
     s.toggleAutoSaveEnabled()
     await new Promise((r) => setTimeout(r, 0))
-    const parsed = JSON.parse(localStorage.getItem('mde:settings:v5')!)
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
     expect(parsed.autoSaveEnabled).toBe(true)
   })
 
@@ -101,7 +101,7 @@ describe('settings.autoSaveEnabled(填充阶段补充:持久化路径全覆盖)'
     s.resetAll()
     await new Promise((r) => setTimeout(r, 0))
     expect(s.autoSaveEnabled).toBe(false)
-    const parsed = JSON.parse(localStorage.getItem('mde:settings:v5')!)
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
     expect(parsed.autoSaveEnabled).toBe(false)
   })
 })
