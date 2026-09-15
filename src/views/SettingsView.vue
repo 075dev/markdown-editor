@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSettingsStore } from '@/stores/settings'
 import {
+  useSettingsStore,
   FONT_SIZE_MIN,
   FONT_SIZE_MAX,
   FONT_SIZE_DEFAULT,
+  THEMES,
+  THEME_LABELS,
   type Theme,
   type ViewMode,
 } from '@/stores/settings'
@@ -22,10 +24,10 @@ const customMonoInput = ref('')
 const customSansOpen = ref(false)
 const customMonoOpen = ref(false)
 
-const themes: Array<{ value: Theme; label: string }> = [
-  { value: 'system', label: '跟随系统' },
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
+/** 六主题 + system 特殊卡(卡片网格渲染顺序;system 固定末位) */
+const themeCards: Array<{ value: Theme; label: string; system: boolean }> = [
+  ...THEMES.map((value) => ({ value, label: THEME_LABELS[value], system: false })),
+  { value: 'system', label: THEME_LABELS.system, system: true },
 ]
 
 const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
@@ -138,19 +140,44 @@ onMounted(() => {
             <span class="settings__row-name">主题</span>
             <span class="settings__row-hint">应用整体配色方案</span>
           </div>
-          <div class="settings__row-control" role="radiogroup" aria-label="主题">
-            <button
-              v-for="t in themes"
-              :key="t.value"
-              type="button"
-              class="settings__chip"
-              :class="{ 'is-active': settings.theme === t.value }"
-              :aria-pressed="settings.theme === t.value"
-              :data-testid="`theme-${t.value}`"
-              @click="settings.setTheme(t.value)"
-            >
-              {{ t.label }}
-            </button>
+          <div class="settings__row-control">
+            <div class="theme-grid" role="radiogroup" aria-label="主题">
+              <button
+                v-for="t in themeCards"
+                :key="t.value"
+                type="button"
+                class="theme-card"
+                :class="{ 'is-active': settings.theme === t.value }"
+                role="radio"
+                :aria-checked="settings.theme === t.value"
+                :data-testid="`theme-${t.value}`"
+                @click="settings.setTheme(t.value)"
+              >
+                <span
+                  v-if="t.system"
+                  class="theme-card__preview theme-card__preview--system"
+                  aria-hidden="true"
+                >
+                  <span class="theme-card__sys-icon" />
+                </span>
+                <span
+                  v-else
+                  class="theme-card__preview"
+                  :data-swatch="t.value"
+                  aria-hidden="true"
+                >
+                  <span class="theme-card__swatch theme-card__swatch--bg" />
+                  <span class="theme-card__swatch theme-card__swatch--side" />
+                  <span class="theme-card__swatch theme-card__swatch--accent" />
+                </span>
+                <span class="theme-card__name">{{ t.label }}</span>
+                <span
+                  v-if="settings.theme === t.value"
+                  class="theme-card__check"
+                  aria-hidden="true"
+                >✓</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -469,6 +496,152 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+/* ---------- 主题卡片选择器(add-001) ---------- */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(128px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  background: var(--bg);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+
+.theme-card:hover {
+  border-color: var(--accent);
+}
+
+.theme-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-1);
+}
+
+.theme-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-card__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 48px;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--sw-bg, var(--bg-elev));
+}
+
+.theme-card__preview--system {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elev);
+}
+
+/* 纯 CSS 显示器图标(跟随系统特殊卡) */
+.theme-card__sys-icon {
+  position: relative;
+  width: 20px;
+  height: 13px;
+  border: 2px solid var(--text-2);
+  border-radius: 2px;
+}
+
+.theme-card__sys-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 2px;
+  background: var(--text-2);
+}
+
+.theme-card__swatch {
+  display: block;
+  flex: 1;
+  border-radius: 2px;
+}
+
+.theme-card__swatch--side {
+  background: var(--sw-side, transparent);
+}
+
+.theme-card__swatch--accent {
+  flex: 0 0 9px;
+  background: var(--sw-accent, var(--accent));
+}
+
+/* 各主题代表色样本(与 global.css 对应主题的 --bg/--bg-sidebar/--accent 一致) */
+.theme-card__preview[data-swatch='light'] {
+  --sw-bg: #ffffff;
+  --sw-side: #f2f3f6;
+  --sw-accent: #4f46e5;
+}
+
+.theme-card__preview[data-swatch='dark'] {
+  --sw-bg: #0f1115;
+  --sw-side: #12141b;
+  --sw-accent: #6d8bff;
+}
+
+.theme-card__preview[data-swatch='oled'] {
+  --sw-bg: #000000;
+  --sw-side: #050507;
+  --sw-accent: #6e9fff;
+}
+
+.theme-card__preview[data-swatch='paper'] {
+  --sw-bg: #faf4e8;
+  --sw-side: #f5eedf;
+  --sw-accent: #a3692d;
+}
+
+.theme-card__preview[data-swatch='bluegray'] {
+  --sw-bg: #f0f3f7;
+  --sw-side: #eaeef4;
+  --sw-accent: #2e6f9e;
+}
+
+.theme-card__preview[data-swatch='rose'] {
+  --sw-bg: #211a1e;
+  --sw-side: #241c20;
+  --sw-accent: #e8758f;
+}
+
+.theme-card__name {
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-1);
+}
+
+.theme-card.is-active .theme-card__name {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.theme-card__check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 12px;
+  color: var(--accent-text);
+  font-weight: 700;
 }
 
 .settings__chip {
