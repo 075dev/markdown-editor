@@ -28,6 +28,38 @@ fn refresh_windows_shell_icons() {
     }
 }
 
+/* ---------- 启动参数:系统"打开方式"传入的文档路径(bugfix-001) ---------- */
+
+/// 待前端取走的启动文档路径。前端就绪后经 take_startup_open_path 一次性消费。
+static STARTUP_OPEN_PATH: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
+
+/// 从命令行参数提取首个可打开的文档路径。
+/// 规则:跳过程序名与 `-` 开头的选项;仅接受 md/markdown/mdx/txt 扩展名(大小写不敏感)。
+/// 不做存在性校验 —— 文件缺失由前端打开链路(read_text 失败 → 返回 false)自然兜底,
+/// 保持本函数为纯解析以便测试。
+fn startup_open_path_from_args<I: Iterator<Item = String>>(args: I) -> Option<String> {
+    for arg in args.skip(1) {
+        if arg.starts_with('-') {
+            continue;
+        }
+        let ext_ok = PathBuf::from(&arg)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| matches!(e.to_ascii_lowercase().as_str(), "md" | "markdown" | "mdx" | "txt"))
+            .unwrap_or(false);
+        if ext_ok {
+            return Some(arg);
+        }
+    }
+    None
+}
+
+/// 前端挂载后取走启动文档路径(一次性,取走即清空,避免重复打开)。
+#[tauri::command]
+fn take_startup_open_path() -> Option<String> {
+    STARTUP_OPEN_PATH.lock().unwrap().take()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 单实例锁：用临时目录下一个独占创建的文件作为 mutex。
@@ -41,6 +73,13 @@ pub fn run() {
         // 同时把信息弹到 stderr + 桌面窗口（如果有的话）—— 这里只打 stderr，
         // 因为我们还没初始化 Tauri builder。
         std::process::exit(1);
+    }
+
+    // 系统"打开方式"/文件关联启动时,文档路径在 argv 里(bugfix-001)。
+    // 解析后暂存,前端就绪后经 take_startup_open_path 一次性取走。
+    if let Some(p) = startup_open_path_from_args(std::env::args()) {
+        eprintln!("[startup-open] doc path from argv: {}", p);
+        *STARTUP_OPEN_PATH.lock().unwrap() = Some(p);
     }
 
     tauri::Builder::default()
@@ -126,7 +165,8 @@ pub fn run() {
             watch_file,
             unwatch_file,
             read_file,
-            get_plantuml_server_url
+            get_plantuml_server_url,
+            take_startup_open_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -615,5 +655,40 @@ fn try_acquire_single_instance_lock() -> Result<(), String> {
                 Err(format!("failed to create lockfile: {e}"))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod startup_open_tests {
+    // 复现(bugfix-001):系统"打开方式"传入的文档路径当前无人消费。
+    // 以下测试先于实现编写,当前应编译失败(函数不存在)——即复现证据。
+    use super::startup_open_path_from_args;
+
+    fn args<'a>(list: &'a [&'a str]) -> impl Iterator<Item = String> + 'a {
+        std::iter::once("markdown-editor.exe".to_string())
+            .chain(list.iter().map(|s| s.to_string()))
+    }
+
+    #[test]
+    fn extracts_supported_doc_path() {
+        assert_eq!(
+            startup_open_path_from_args(args(&["D:\\notes\\demo.md"])),
+            Some("D:\\notes\\demo.md".to_string())
+        );
+    }
+
+    #[test]
+    fn returns_none_without_doc_args() {
+        assert_eq!(startup_open_path_from_args(args(&[])), None);
+        assert_eq!(startup_open_path_from_args(args(&["--flag"])), None);
+        assert_eq!(startup_open_path_from_args(args(&["readme.xyz"])), None);
+    }
+
+    #[test]
+    fn is_case_insensitive_on_extension() {
+        assert_eq!(
+            startup_open_path_from_args(args(&["D:\\notes\\DEMO.MD"])),
+            Some("D:\\notes\\DEMO.MD".to_string())
+        );
     }
 }

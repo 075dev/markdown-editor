@@ -10,6 +10,7 @@ import TitleBar from '@/components/TitleBar.vue'
 import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
 import { useEditorScrollSync } from '@/composables/useEditorScrollSync'
 import { useAutoSave } from '@/composables/useAutoSave'
+import { takeStartupOpenPath } from '@/services/startupOpen'
 
 const router = useRouter()
 const workspace = useWorkspaceStore()
@@ -100,6 +101,11 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown)
+  // 系统"打开方式"启动(bugfix-001):取走 argv 暂存的文档路径并打开为标签。
+  // 文件缺失/不可读时 openFileFromPath 返回 false,静默不阻塞启动。
+  takeStartupOpenPath().then(async (p) => {
+    if (p) await workspace.openFileFromPath(p)
+  })
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
