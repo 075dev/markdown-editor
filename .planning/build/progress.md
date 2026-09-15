@@ -20,3 +20,10 @@ Round 1 F2-fix status:PASS | acceptance:"安排保存后关闭开关→advanceTi
 Round 1 F3-fix status:PASS | acceptance:"两标签同冲突,横幅逐标签渲染,点第一条目按钮只写盘该标签,另一条保持冲突" | strictness:LIGHT | evidence:commit 464e90f + AutoSaveBanner.test.ts 9/9(新增多标签用例)
 Round 1 F4-fix status:PASS | acceptance:"读盘失败保持 conflict + error 通知;读盘期间切换标签仍按 path 正确落 clean、不污染新活动标签;读盘期间关标签不复活" | strictness:HEAVY | evidence:commit 06e9134 + workspace.watch.test.ts 21/21(新增 5 例)+ AutoSaveBanner 失败保持用例
 Round 1 verify status:PASS | acceptance:"vue-tsc 0 错 + vitest 全量不回退(基线 201 只增不减)" | strictness:- | evidence:vue-tsc exit 0;214/214,25 文件(净增 13,全部为修复回归测试)
+
+# ===== add-001 六主题 + 全面视觉升级(填充轮) =====
+Wave 1 T1 status:PASS | acceptance:"六主题 token 齐备 + settings v6/v5 迁移 + 非法值回落 + vue-tsc + vitest 不回退" | strictness:HEAVY | evidence:commit 6c4bac8;settings.test 21/21(新增 7);stores 78/78;边界扩展:settings.autosave.test.ts 4 处 v5 字面量改 STORAGE_KEY 常量(key 升级必然破坏,机械连带)
+Wave 1 T2 status:PASS | acceptance:"渲染 7 卡 + 点击切换 store + aria-checked 状态 + 原生 button 键盘可达" | strictness:LIGHT | evidence:commit 25eff8d;settings.theme-cards.test.ts 5/5
+Wave 1 verify status:PASS | acceptance:"vue-tsc 0 错 + vitest 全量不回退(基线 223 只增不减)" | strictness:- | evidence:vue-tsc exit 0;235/235(净增 12)
+Wave 2 T3 status:PASS | acceptance:"组件硬编码颜色清零(功能白底/卡片样本除外)+ CM6/预览 hl-* token 化 + vue-tsc/vitest 不回退 + 六主题 28 token 齐备 + --text-2/3 对比度 >=4.5" | strictness:HEAVY | evidence:commit 52f721b(13 文件);残留色仅 PreviewPane PNG 白底衬垫与设置页卡片样本色;完整性脚本 8 块 NONE missing;WCAG t2 5.17-7.45 / t3 4.55-4.66;235/235
+Wave 2 verify(终验) status:PASS | acceptance:"vue-tsc 0 错 + vitest 全量不回退(基线 223 只增不减)+ C3 无 console.log" | strictness:- | evidence:vue-tsc exit 0;235/235(净增 12);console.log grep 零命中
