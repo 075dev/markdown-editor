@@ -122,3 +122,43 @@ stateDiagram-v2
 | 保存成功后立即又输入 | 状态回到 Dirty,开启新一轮防抖 |
 | 多标签同时 Dirty + 失焦 | 逐个顺序保存;任一失败不影响其他标签,失败者走重试策略 |
 | 设置页自动保存开关关闭 | 全部自动保存行为停用(防抖/失焦/重试),仅手动 Ctrl+S;冲突安全网仍然生效 |
+
+
+---
+
+## 主题系统约定(add-001,纯前端,无 IPC 面)
+
+六套预设主题,`<html data-theme>` 承载,`settings.theme` 持久化:
+
+| 主题 ID | 名称 | 基调 | 说明 |
+|---------|------|------|------|
+| `light` | 浅色 | 默认 | 首选默认主题 |
+| `dark` | 深色 | 深色 | 原深色精修 |
+| `oled` | 墨黑 | 纯黑 | OLED 省电,#000 基底 |
+| `paper` | 纸张 | 米黄 | 护眼纸感,暖色低对比 |
+| `bluegray` | 蓝灰 | 冷浅 | 蓝灰基底冷色调 |
+| `rose` | 玫瑰 | 暖深 | 玫瑰强调暖深色 |
+
+行为约定:
+
+1. `theme: 'system'` 保留:移除 data-theme,由 `prefers-color-scheme` 映射 light/dark(其余主题不参与跟随);
+2. CSS 变量 token 体系:背景层次(--bg/--bg-elev/--bg-sidebar)、文字三级(--text-1/2/3)、边框(--border/--border-strong)、强调(--accent/--accent-soft/--accent-text)、状态(--danger/--warning/--success)、代码块(--code-bg + hl-keyword/hl-string/hl-comment/hl-number/hl-operator)、阴影(--shadow-1/2)、圆角(--radius)、选区与滚动条;每套主题完整定义,组件禁止硬编码颜色;
+3. 代码高亮:自研 tokenizer 的 hl-* class 颜色全部走主题变量,天然跟随切换(不引入 shiki,保持零依赖决策);
+4. 切换过渡:背景/文字/边框颜色 200ms ease 过渡,禁用全局 * 选择器过渡(避免首屏闪烁);
+5. 设置页:卡片式主题选择器,每卡片含该主题的 mini 预览色块,键盘可达。
+
+## 主题切换时序(sequenceDiagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant S as 设置页
+    participant ST as settings store
+    participant D as documentElement
+    U->>S: 点击主题卡片
+    S->>ST: setTheme(id)
+    ST->>D: data-theme = id
+    D-->>U: 全局配色 200ms 过渡
+    ST->>ST: localStorage 持久化
+```

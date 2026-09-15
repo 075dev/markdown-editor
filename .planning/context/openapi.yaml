@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: markdown-editor
-  version: 0.1.0
+  version: 0.1.1
   description: |
     本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
 
@@ -23,6 +23,7 @@ info:
     - Q: 脏文件遇外部修改的默认策略? → A: 进入 conflict 状态,暂停自动保存,状态栏双按钮"保留我的 / 用磁盘版本"(2026-09-14)
     - Q: 自动保存触发时机? → A: 内容变更防抖 1500ms + 窗口失焦立即写入(2026-09-14)
     - Q: 覆盖写入前是否留备份? → A: 不留 .bak,安全性由冲突态保护(2026-09-14)
+    - Q: 主题切换(add-001)是否涉及 IPC? → A: 否,纯前端 CSS 变量 + settings 持久化,无新端点/事件;代码高亮色经 hl-* class 由主题 CSS 变量驱动(2026-09-15)
 
 servers:
   - url: tauri://ipc
