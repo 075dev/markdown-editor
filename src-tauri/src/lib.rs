@@ -62,19 +62,6 @@ fn take_startup_open_path() -> Option<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 单实例锁：用临时目录下一个独占创建的文件作为 mutex。
-    // 第二个进程 OpenOptions::create_new(true) 会失败，我们直接退出。
-    // 路径：OS 临时目录 + "markdown-editor.lock"。
-    if let Err(e) = try_acquire_single_instance_lock() {
-        eprintln!(
-            "[single-instance] another instance is already running ({}). exiting.",
-            e
-        );
-        // 同时把信息弹到 stderr + 桌面窗口（如果有的话）—— 这里只打 stderr，
-        // 因为我们还没初始化 Tauri builder。
-        std::process::exit(1);
-    }
-
     // 系统"打开方式"/文件关联启动时,文档路径在 argv 里(bugfix-001)。
     // 解析后暂存,前端就绪后经 take_startup_open_path 一次性取走。
     if let Some(p) = startup_open_path_from_args(std::env::args()) {
@@ -83,6 +70,18 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        // 单实例 + 暖启动 argv 转发(bugfix-002):官方插件用 OS 原生
+        // mutex,不再落盘 lockfile —— 修复"退出后锁文件残留导致再也
+        // 打不开";第二实例启动时其 argv 会转发到本回调(暖启动打开
+        // 文档),随后第二实例自动退出。官方要求该插件注册在最前。
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 插件 Windows 实现转发的是第二实例完整 argv(含程序名),
+            // startup_open_path_from_args 内部 skip(1) 与之对应。
+            if let Some(p) = startup_open_path_from_args(args.into_iter()) {
+                eprintln!("[startup-open] warm-open doc path: {}", p);
+                let _ = app.emit("startup-open-file", serde_json::json!({ "path": p }));
+            }
+        }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -616,46 +615,6 @@ fn spawn_no_op_handle() -> std::process::Child {
 fn get_plantuml_server_url() -> Option<String> {
     let guard = PLANTUML_CHILD.lock().unwrap();
     guard.as_ref().map(|c| c.diagram_base.clone())
-}
-
-/* ---------- 单实例锁 ---------- */
-
-/// 通过独占创建临时目录下的 lockfile 实现单实例。
-///
-/// 设计：
-///   - 用 OS 临时目录（Windows: %TEMP%，Linux: /tmp，macOS: $TMPDIR）。
-///   - 文件名固定为 `markdown-editor.lock`。
-///   - OpenOptions::create_new(true) 第二个实例创建时直接返回 ErrKind::AlreadyExists。
-///   - 第一个实例退出时 OS 自动删除 lockfile（因为我们持有句柄；进程
-///     退出 → 句柄释放 → 文件保留但没有任何进程能复用它，下次启动会
-///     覆盖式创建 —— 但 Windows 上 file handle 还活着的时候同名
-///     create_new 会失败）。
-///
-/// 真实稳定性：在 Windows 上第二个实例拿不到锁（OS 拒绝）；在 Unix 上
-/// 用 flock + LOCK_NB，第二个实例 EWOULDBLOCK。我们这里用 create_new
-/// 作为最简单可移植实现。
-fn try_acquire_single_instance_lock() -> Result<(), String> {
-    let lock_path = std::env::temp_dir().join("markdown-editor.lock");
-    let result = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&lock_path);
-    match result {
-        Ok(_file) => {
-            // 让句柄留在进程里 —— 退出时 OS 自动释放。
-            // 用 forget 不让它立即 drop，避免锁被提前释放。
-            std::mem::forget(_file);
-            Ok(())
-        }
-        Err(e) => {
-            // 已经存在 ⇒ 第二个实例
-            if e.kind() == std::io::ErrorKind::AlreadyExists {
-                Err("lockfile already exists".to_string())
-            } else {
-                Err(format!("failed to create lockfile: {e}"))
-            }
-        }
-    }
 }
 
 #[cfg(test)]
