@@ -1,14 +1,16 @@
 ---
 ql_state_version: '1.0'
-current_phase: 1
+current_phase: '1_shipped'
+chapter_id: chapter-02
+docs_path: .qiling/docs/
 work_branch: ql/phase-1-autosave
 base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
-status: reviewed
+status: shipped
 review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..fe679f2
 waves_executed: 4
-last_activity: fill + verification + review complete
+last_activity: shipped PR #1 + chapter-02 generated (用户选择:创建 PR)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
