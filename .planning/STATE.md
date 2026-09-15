@@ -60,3 +60,4 @@ event_messages_count: 1
 
 ## 缺陷修复(不推进 phase)
 - bugfix-001(2026-09-15): 默认打开方式启动时不打开文档 —— 状态 fixed,评审 approved(0 critical)。修复 a5582d4:冷启 argv 暂存 + take_startup_open_path + HomeView 启动打开 + fileAssociations 打包声明。遗留:暖启动 argv 转发(N2,建议 tauri-plugin-single-instance)、安装级双击实测(N3)。详见 .planning/bugfix/001-file-association-open.md
+- bugfix-002(2026-09-15): 安装后仅首次能打开、关闭后再也打不开 —— 状态 fixed,评审 approved(0 critical/0 major)。根因:自研 lockfile 单实例锁误判"句柄释放时 OS 删除文件",锁残留挡死二次启动。修复 7a3a53a:改 tauri-plugin-single-instance 2.4.4(OS 原生 mutex),顺带闭环 bugfix-001 遗留 N2(暖启动 argv 转发)。遗留 4 项 minor(emit 竞态/插件窗口期/测试锁定缺口/分隔符边缘)。详见 .planning/bugfix/002-single-instance-lock-stuck.md

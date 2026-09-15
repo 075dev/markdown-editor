@@ -256,3 +256,4 @@ b9f369a chore: 交付前收尾(STATE reviewed + 评审第 2 轮报告入库)
 |------|------|------|
 | 2026-09-15T01:16:27Z | 自动生成 | `/ql-deliver` 后由器灵产出(PR #1) |
 | 2026-09-15 | fix | 默认打开方式启动时消费文档路径(冷启 argv → take_startup_open_path → 打开标签;含 fileAssociations 打包声明)。bugfix-001,评审 approved,遗留暖启动转发 |
+| 2026-09-15 | fix | 单实例锁改官方插件 tauri-plugin-single-instance(OS 原生 mutex),根除退出后锁文件残留导致无法再次启动;顺带闭环暖启动 argv 转发(应用运行中双击文档直接打开)。bugfix-002,评审 approved |
