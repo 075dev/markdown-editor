@@ -34,8 +34,8 @@
     "externalBin": [],
     "fileAssociations": [
       {
-        "name": "Markdown 文档",
-        "description": "用 MarkDownEditor 打开",
+        "name": "Markdown Document",
+        "description": "Open with MarkDownEditor",
         "ext": ["md", "markdown", "mdx", "txt"],
         "role": "Editor"
       }
