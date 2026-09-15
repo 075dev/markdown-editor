@@ -16,6 +16,7 @@
 |------|------|------|------|--------|--------|-----|----------|
 | [chapter-01](./chapters/chapter-01-markdown-editor.md) | markdown-editor(初始化) | init | 📦 initialized | 6 command | 1 | - | 2026-09-14 |
 | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md) | 自动保存 + 冲突安全网 | 1 | ✅ shipped | 11 | 1 | [#1](https://github.com/075dev/markdown-editor/pull/1) | 2026-09-15 |
+| [chapter-03](./chapters/chapter-03-theme-system.md) | 主题系统与视觉升级 | 1(add) | ✅ shipped | 0(纯前端) | 0 | [#1](https://github.com/075dev/markdown-editor/pull/1) | 2026-09-15 |
 
 ---
 
@@ -70,12 +71,12 @@
 | 字段 | 值 |
 |------|---|
 | 项目名 | markdown-editor |
-| 版本 | 0.1.0 |
-| 当前阶段 | Phase 1 已交付(PR #1,评审 approved) |
-| 总章节数 | 2 |
+| 版本 | 0.1.0(契约 0.1.1) |
+| 当前阶段 | Phase 1 已交付(PR #1,评审 approved);add-001 主题系统已交付 |
+| 总章节数 | 3 |
 | 总端点数 | 11 |
 | 总事件数 | 1 |
-| 测试规模 | 214(vitest 全绿) |
+| 测试规模 | 235(vitest 全绿) |
 | 器灵版本 | 0.5.0 |
 
 **OpenAPI 契约(完整版):** [../../.planning/context/openapi.yaml](../../.planning/context/openapi.yaml)
