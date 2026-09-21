@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: markdown-editor
-  version: 0.1.1
+  version: 0.2.0
   description: |
     本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
 
@@ -24,6 +24,8 @@ info:
     - Q: 自动保存触发时机? → A: 内容变更防抖 1500ms + 窗口失焦立即写入(2026-09-14)
     - Q: 覆盖写入前是否留备份? → A: 不留 .bak,安全性由冲突态保护(2026-09-14)
     - Q: 主题切换(add-001)是否涉及 IPC? → A: 否,纯前端 CSS 变量 + settings 持久化,无新端点/事件;代码高亮色经 hl-* class 由主题 CSS 变量驱动(2026-09-15)
+    - Q: 预览链接点击(add-002)如何路由? → A: 三分支——#锚点 预览内滚动;http/https/mailto 经新端点 /ipc/open-external 交系统默认程序(Rust 协议白名单二次校验);相对路径文档链接解析为绝对路径后复用 /ipc/read-file 在编辑器内打开。所有分支一律 preventDefault,杜绝 WebView 内导航冲掉编辑器(2026-09-21)
+    - Q: heading 锚点 id 从哪来? → A: 渲染管线新增 rehype 插件为标题注入 slug id(GitHub 风格,CJK 保留,重名 -N 去重),自写零依赖(2026-09-21)
 
 servers:
   - url: tauri://ipc
@@ -282,6 +284,39 @@ paths:
                       - { type: string, format: uri }
                       - type: 'null'
 
+  # ================= 文档链接(add-002) =================
+
+  /ipc/open-external:
+    post:
+      tags: [View]
+      summary: 用系统默认程序打开外部链接(浏览器/mail 客户端)
+      description: |
+        协议白名单:http/https/mailto(大小写不敏感);白名单外一律拒绝,
+        不传递给系统 shell(Rust 侧二次校验,防前端绕过)。
+        工作区文档间跳转不走本端点——相对路径经前端解析后复用 /ipc/read-file
+        (见 event-flow.md 场景 4)。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties:
+                target: { type: string, minLength: 1, description: 完整 URL(http/https/mailto) }
+      responses:
+        '200':
+          description: 已交给系统默认程序处理(系统是否成功展示不在本端点职责内)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '422': { $ref: '#/components/responses/UnsupportedProtocol' }
+        '500': { $ref: '#/components/responses/OpenExternalFailed' }
+
 # ============================================================
 # 事件(OpenAPI 无原生位置,经 x-ql-events 扩展承载,ql-build 对账用)
 # ============================================================
@@ -357,6 +392,8 @@ components:
             - PATH_INVALID
             - WATCH_FAILED
             - WINDOW_OPEN_FAILED
+            - UNSUPPORTED_PROTOCOL
+            - OPEN_EXTERNAL_FAILED
             - INTERNAL_ERROR
         message: { type: string }
         details:
@@ -391,6 +428,16 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     WindowOpenFailed:
       description: 图表窗口创建失败
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    UnsupportedProtocol:
+      description: 协议不在 http/https/mailto 白名单内(拒绝传递给系统 shell)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    OpenExternalFailed:
+      description: 系统默认程序调用失败
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

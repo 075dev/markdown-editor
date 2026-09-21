@@ -162,3 +162,64 @@ sequenceDiagram
     D-->>U: 全局配色 200ms 过渡
     ST->>ST: localStorage 持久化
 ```
+
+---
+
+## 文档链接跳转约定(add-002,新增 1 端点,无新事件)
+
+预览区链接点击三分支路由;**所有分支一律 `preventDefault`**,杜绝 Tauri WebView
+在当前窗口内导航冲掉编辑器(现状缺口:预览 `<a>` 无任何点击处理)。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant P as 预览区(PreviewPane)
+    participant R as 链接路由(previewLinks)
+    participant X as externalLinks service
+    participant W as workspace store
+    participant OS as 系统/磁盘
+
+    U->>P: 点击 <a href>
+    P->>R: 事件委托 → preventDefault
+    alt href = #锚点
+        R->>P: 滚动到对应标题 slug id(平滑滚动)
+        Note over R,P: 目标不存在 → 忽略
+    else href = http(s):// 或 mailto:
+        R->>X: openExternal(url)
+        X->>OS: invoke /ipc/open-external(Rust 白名单二次校验)
+        Note over X,OS: 失败 → 状态栏错误提示;Web 模式降级 window.open
+    else href = 相对/工作区路径文档链接
+        R->>R: 基于当前文档目录解析绝对路径(decode + 剥离 #锚点 + 缺扩展名补 .md)
+        R->>W: openFileFromPath(resolved)
+        W->>OS: /ipc/read-file → 新标签打开
+        Note over R,W: 失败 → 状态栏错误提示,不中断当前编辑
+    end
+```
+
+行为细则:
+
+1. **协议分类**(大小写不敏感):`#fragment` → 预览内滚动;`http/https/mailto` →
+   `/ipc/open-external`;`javascript:/data:/vbscript:` → 忽略(rehype-sanitize 已挡,双保险);
+   其余非空 href → 文档间跳转路径。
+2. **文档间跳转解析**:`/` 开头相对工作区根(rootPath 未设则提示);Windows 盘符开头视为
+   绝对路径;其余相对当前文档所在目录;`decodeURIComponent` 后剥离 `#fragment`;
+   无扩展名时补 `.md`;解析结果必须落到已存在的文件,否则状态栏错误提示。
+3. **heading 锚点 id**:渲染管线新增自写 rehype 插件注入 slug id——GitHub 风格
+   (ASCII 小写、空白转 `-`、去标点),CJK 字符保留;同文档重名追加 `-1/-2` 去重。
+4. **Web 模式降级**:`open-external` → `window.open(target, '_blank', 'noopener')`;
+   文档间跳转(web 无工作区绝对路径)→ 状态栏提示"仅桌面支持"。
+
+### 边缘场景(add-002 追加)
+
+| 场景 | 期望行为 |
+|------|----------|
+| 点击预览内普通外部链接(http) | 系统浏览器打开,编辑器不受影响(preventDefault) |
+| 点击 `[xx](./sub/other.md)` | 解析为绝对路径 → 编辑器新标签打开目标文档 |
+| 点击 `[xx](../sibling.md#section)` | 跳转目标文档后锚点部分忽略(打开即文档顶部) |
+| 点击 `[xx](missing.md)`(文件不存在) | 状态栏错误提示,当前标签不动 |
+| 点击 `[章节](#安装)`(同文档锚点) | 预览区平滑滚动到对应标题 |
+| 锚点目标不存在 | 忽略,无报错无滚动 |
+| href 为 `javascript:` 等危险协议 | 双重拦截(sanitize 剥离 + 路由白名单忽略) |
+| Web 模式点击相对路径链接 | 状态栏提示仅桌面支持文档间跳转 |
+| open-external 系统调用失败 | 状态栏错误提示(OPEN_EXTERNAL_FAILED) |
