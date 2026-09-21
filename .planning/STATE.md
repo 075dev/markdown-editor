@@ -10,7 +10,7 @@ review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..fe679f2
 waves_executed: 4
-last_activity: add-002 文档链接跳转 added to chapter-01(评审 approved)
+last_activity: add-002 文档链接跳转 shipped via PR #1(推送并更新 PR 正文,2026-09-21)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
