@@ -16,6 +16,8 @@ export type QlErrorCode =
   | 'PATH_INVALID'
   | 'WATCH_FAILED'
   | 'WINDOW_OPEN_FAILED'
+  | 'UNSUPPORTED_PROTOCOL'
+  | 'OPEN_EXTERNAL_FAILED'
   | 'INTERNAL_ERROR'
 
 /** 契约 Error schema 的最小前端态(details 字段骨架期不携带) */
@@ -30,7 +32,7 @@ export interface QlError {
  * message 部分允许跨行。
  */
 const CODE_PREFIX_RE =
-  /^(FILE_NOT_FOUND|FILE_READ_FAILED|FILE_WRITE_FAILED|PATH_INVALID|WATCH_FAILED|WINDOW_OPEN_FAILED|INTERNAL_ERROR):[ \t]?([\s\S]*)$/
+  /^(FILE_NOT_FOUND|FILE_READ_FAILED|FILE_WRITE_FAILED|PATH_INVALID|WATCH_FAILED|WINDOW_OPEN_FAILED|UNSUPPORTED_PROTOCOL|OPEN_EXTERNAL_FAILED|INTERNAL_ERROR):[ \t]?([\s\S]*)$/
 
 /** 从任意 thrown 值里提取可读 message(保留原始文本,不改写) */
 function rawMessage(raw: unknown): string {

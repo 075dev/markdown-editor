@@ -8,6 +8,7 @@ import { plantumlRehype, resolvePlantumlServerUrl } from './plantumlRehype'
 import { plantumlHighlight } from './plantumlHighlight'
 import { buildCodeHighlightPlugin, disposeHighlighter } from './codeHighlight'
 import { stripDiagramCode } from './stripDiagramCode'
+import { headingAnchors } from './headingAnchors'
 
 /**
  * Markdown → 安全的 HTML 渲染管线：
@@ -18,8 +19,9 @@ import { stripDiagramCode } from './stripDiagramCode'
  *   4. codeHighlight     (正则在 hast 加 span.hl-X)  ← 通用代码块高亮（同步、零依赖、零 wasm）
  *   5. plantumlHighlight (自写)                     ← PlantUML 关键字着色
  *   6. plantumlRehype                                ← PlantUML <pre> → <img>
- *   7. rehype-sanitize                               ← XSS 过滤
- *   8. rehype-stringify
+ *   7. headingAnchors    (自写)                      ← h1–h6 注入 GitHub 风格 slug id(#锚点定位)
+ *   8. rehype-sanitize                               ← XSS 过滤
+ *   9. rehype-stringify
  *
  * 设计要点：
  *   - 同步高亮，wasm / onig 之类不在预览期加载，避免和 Tauri WebView onig 加载时机 conflict。
@@ -32,6 +34,11 @@ import { stripDiagramCode } from './stripDiagramCode'
 // 默认 schema 已经允许常见的格式化标签，但禁止脚本与危险协议。
 const sanitizeSchema: typeof defaultSchema = {
   ...defaultSchema,
+  // defaultSchema 会给 id/name 加 'user-content-' 前缀(clobber 防护,面向多租户平台)。
+  // 本地编辑器渲染的是用户自己的文档,且 add-002 契约要求预览内 `#锚点` 链接
+  // 直接按标题 slug 定位 —— 这里关闭前缀,让 headingAnchors 注入的 id 原样保留。
+  // 注:id 本就在 defaultSchema.attributes['*'] 全局白名单中,无需按标签追加。
+  clobberPrefix: '',
   attributes: {
     ...defaultSchema.attributes,
     code: [
@@ -91,6 +98,9 @@ export function getProcessor(): Promise<Processor<undefined, undefined, undefine
       .use(plantumlHighlight)
       // PlantUML <pre> → <img>：必须在 sanitize 之前
       .use(plantumlRehype, { format: 'svg', serverUrl })
+      // 标题锚点 slug id（#锚点跳转目标）：必须在 sanitize 之前注入，
+      // 且 sanitizeSchema 已放行 h1–h6 的 id 属性
+      .use(headingAnchors)
       .use(rehypeSanitize, sanitizeSchema)
       .use(rehypeStringify)
     return processor as unknown as Processor<undefined, undefined, undefined, undefined, string>

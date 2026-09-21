@@ -164,6 +164,7 @@ pub fn run() {
             watch_file,
             unwatch_file,
             read_file,
+            open_external,
             get_plantuml_server_url,
             take_startup_open_path
         ])
@@ -443,6 +444,33 @@ fn read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("FILE_READ_FAILED: read failed: {e}"))
 }
 
+/* ---------- 外部链接打开（add-002，契约 POST /ipc/open-external） ---------- */
+
+/// 外部链接目标协议白名单校验。
+/// 仅放行 `http:` / `https:` / `mailto:` 前缀（大小写不敏感），
+/// 其余（file:、javascript:、data:、cmd 等）一律拒绝——绝不把白名单外的
+/// 字符串传递给系统 shell。
+/// 纯函数：无 IO，便于单元测试（见 open_external_tests）。
+fn validate_external_target(target: &str) -> Result<(), &'static str> {
+    let lower = target.to_ascii_lowercase();
+    if lower.starts_with("http:") || lower.starts_with("https:") || lower.starts_with("mailto:") {
+        return Ok(());
+    }
+    Err("only http/https/mailto protocols are allowed")
+}
+
+/// 用系统默认程序打开外部链接。
+/// 白名单不过 → Err("UNSUPPORTED_PROTOCOL: ...")；
+/// 系统默认程序调用失败 → Err("OPEN_EXTERNAL_FAILED: ...")（"CODE: message" 前缀，同 read_file 先例）。
+#[tauri::command]
+async fn open_external(target: String) -> Result<(), String> {
+    if let Err(reason) = validate_external_target(&target) {
+        return Err(format!("UNSUPPORTED_PROTOCOL: {reason}: {target}"));
+    }
+    open::that(&target)
+        .map_err(|e| format!("OPEN_EXTERNAL_FAILED: failed to open external target: {e}"))
+}
+
 /* ---------- 本地 PlantUML 服务 ---------- */
 
 use std::sync::Arc;
@@ -649,5 +677,53 @@ mod startup_open_tests {
             startup_open_path_from_args(args(&["D:\\notes\\DEMO.MD"])),
             Some("D:\\notes\\DEMO.MD".to_string())
         );
+    }
+}
+
+#[cfg(test)]
+mod open_external_tests {
+    // add-002 T1:外部链接打开的协议白名单校验。
+    // open_external 命令本体依赖系统 shell,单测覆盖纯函数 validate_external_target;
+    // 错误文案("CODE: message")在命令内拼接,避开前端 normalizeError 的
+    // 模式匹配关键词(not found / denied / invalid 等)防误分类。
+    use super::validate_external_target;
+
+    #[test]
+    fn allows_whitelisted_protocols_case_insensitive() {
+        assert!(validate_external_target("https://example.com/doc").is_ok());
+        assert!(validate_external_target("http://example.com").is_ok());
+        assert!(validate_external_target("HTTPS://EXAMPLE.COM/PATH").is_ok());
+        assert!(validate_external_target("Http://mixed-case.example").is_ok());
+        assert!(validate_external_target("mailto:someone@example.com").is_ok());
+        assert!(validate_external_target("MailTo:Someone@Example.com").is_ok());
+    }
+
+    #[test]
+    fn rejects_dangerous_protocols() {
+        for bad in [
+            "file:///etc/passwd",
+            "FILE://C:/Windows/system32",
+            "javascript:alert(1)",
+            "JAVASCRIPT:void(0)",
+            "data:text/html,<script>alert(1)</script>",
+            "DATA:text/plain,hello",
+            "cmd /c calc",
+            "cmd.exe /c start http://evil.example",
+            "ftp://example.com/file",
+            "vbscript:msgbox",
+        ] {
+            assert!(
+                validate_external_target(bad).is_err(),
+                "should reject: {bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_bare_string_without_protocol() {
+        assert!(validate_external_target("").is_err());
+        assert!(validate_external_target("example.com").is_err());
+        assert!(validate_external_target("www.example.com/path").is_err());
+        assert!(validate_external_target("/local/path/file.md").is_err());
     }
 }

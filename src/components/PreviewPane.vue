@@ -2,8 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { renderMarkdown } from '@/markdown/pipeline'
+import { classifyPreviewLink, resolveDocumentHref } from '@/markdown/linkResolution'
 import { canOpenInWindow, openDiagramWindow } from '@/services/diagramWindow'
 import { renderMermaidBlocks } from '@/services/mermaid'
+import { isTauri } from '@/services/env'
+import { openExternal } from '@/services/externalLinks'
+import { normalizeError } from '@/services/errors'
 
 const workspace = useWorkspaceStore()
 const html = ref<string>('')
@@ -13,8 +17,90 @@ const emit = defineEmits<{
   (e: 'ready-preview-scroll', el: HTMLElement): void
 }>()
 
+/** 链接点击失败统一走状态栏通知(AutoSaveBanner 直接透传 message 展示) */
+function notifyLinkError(message: string): void {
+  workspace.saveNotice = { level: 'error', message }
+}
+
+/**
+ * 预览区链接点击路由(add-002,契约 event-flow.md「文档链接跳转约定」):
+ * 在容器上注册一次事件委托,v-html 重渲不丢监听。
+ * 分类四分支(anchor/external/document/ignored),**一律 preventDefault**,
+ * 杜绝 Tauri WebView 在当前窗口内导航冲掉编辑器。
+ */
+function handlePreviewClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement | null
+  const anchor = target?.closest('a')
+  if (!anchor) return
+  // 必须 getAttribute:a.href 属性会把 href 以当前页面 base URL 绝对化,
+  // 污染相对路径(document 分支解析)与 `#` 锚点判定
+  const href = anchor.getAttribute('href')
+  event.preventDefault()
+  if (href === null) return
+
+  const { kind, fragment } = classifyPreviewLink(href)
+
+  if (kind === 'anchor') {
+    const root = bodyRef.value
+    if (!root || fragment === null || fragment === '') return
+    // 按 id 精确查找。不用 `[id="${CSS.escape(fragment)}"]`:jsdom(测试环境)
+    // 无 CSS 全局,且枚举 + 属性精确比较对任意 fragment(中文/引号等)都安全,
+    // 语义与转义后的属性选择器一致
+    const el =
+      Array.from(root.querySelectorAll<HTMLElement>('[id]')).find(
+        (node) => node.id === fragment,
+      ) ?? null
+    // 目标不存在 → 静默忽略(契约边缘场景:无报错无滚动)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+
+  if (kind === 'external') {
+    // external 的 href 是完整 URL:直接用 getAttribute 原值
+    // (不剥 fragment——http 锚点交由目标页处理;mailto 的 query 保持原样)
+    openExternal(href).catch((err: unknown) => {
+      const qe = normalizeError(err)
+      notifyLinkError(`无法打开链接:${qe.message}`)
+    })
+    return
+  }
+
+  if (kind === 'document') {
+    if (!isTauri()) {
+      // Web 模式没有真实工作区绝对路径体系,文档间跳转不可用
+      notifyLinkError('文档间跳转仅桌面版支持')
+      return
+    }
+    const isRootRelative = href.startsWith('/')
+    if (isRootRelative && !workspace.rootPath) {
+      notifyLinkError('未设置工作区,无法跳转文档链接')
+      return
+    }
+    const currentPath = workspace.activeTab?.path ?? null
+    const resolved = resolveDocumentHref(currentPath, workspace.rootPath, href)
+    if (resolved === null) {
+      notifyLinkError('无法打开链接:无法解析目标文档路径')
+      return
+    }
+    workspace
+      .openFileFromPath(resolved)
+      .then((ok) => {
+        if (!ok) notifyLinkError(`无法打开链接:目标文件不存在或不可读(${resolved})`)
+      })
+      .catch((err: unknown) => {
+        const qe = normalizeError(err)
+        notifyLinkError(`无法打开链接:${qe.message}`)
+      })
+  }
+
+  // kind === 'ignored':仅 preventDefault,无其它动作(危险协议双保险)
+}
+
 onMounted(() => {
-  if (bodyRef.value) emit('ready-preview-scroll', bodyRef.value)
+  const root = bodyRef.value
+  if (!root) return
+  emit('ready-preview-scroll', root)
+  root.addEventListener('click', handlePreviewClick)
 })
 
 watchEffect(async () => {
@@ -89,7 +175,8 @@ watchEffect(async () => {
 })
 
 onBeforeUnmount(() => {
-  // 不需要清理：DOM 会随 PreviewPane 一起被卸载。
+  // 移除链接点击委托;其余 DOM 状态随组件卸载,无需额外清理。
+  bodyRef.value?.removeEventListener('click', handlePreviewClick)
 })
 
 const fileName = computed(() => workspace.activeTab?.name ?? '')
