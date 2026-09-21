@@ -14,7 +14,7 @@
 
 | 章节 | 标题 | 阶段 | 状态 | 端点数 | 事件数 | PR | 生成时间 |
 |------|------|------|------|--------|--------|-----|----------|
-| [chapter-01](./chapters/chapter-01-markdown-editor.md) | markdown-editor(初始化) | init | 📦 initialized | 6 command | 1 | - | 2026-09-14 |
+| [chapter-01](./chapters/chapter-01-markdown-editor.md) | markdown-editor(初始化) | init | 📦 initialized | 7 command | 1 | - | 2026-09-14 |
 | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md) | 自动保存 + 冲突安全网 | 1 | ✅ shipped | 11 | 1 | [#1](https://github.com/075dev/markdown-editor/pull/1) | 2026-09-15 |
 | [chapter-03](./chapters/chapter-03-theme-system.md) | 主题系统与视觉升级 | 1(add) | ✅ shipped | 0(纯前端) | 0 | [#1](https://github.com/075dev/markdown-editor/pull/1) | 2026-09-15 |
 
@@ -39,6 +39,7 @@
 | POST | /ipc/open-diagram-window | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#11-端点清单) | 图表独立窗口 |
 | POST | /ipc/list-system-fonts | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#11-端点清单) | 系统字体枚举 |
 | POST | /ipc/get-plantuml-server-url | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#11-端点清单) | PlantUML 服务器配置 |
+| POST | /ipc/open-external | [chapter-01](./chapters/chapter-01-markdown-editor.md#15-add-002-增量文档链接跳转2026-09-21-并入) | 系统默认程序打开外部链接(协议白名单) |
 
 事件:`file-external-change` `{ path, kind: modified|removed }` —— Rust → 前端,消费语义见 [chapter-02 §1.2](./chapters/chapter-02-autosave-conflict-net.md#12-端点详情本阶段核心通道)。
 
@@ -52,6 +53,8 @@
 | 422 | PATH_INVALID | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 路径非法 |
 | 500 | WATCH_FAILED | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 监听建立失败 |
 | 500 | WINDOW_OPEN_FAILED | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 窗口创建失败 |
+| 422 | UNSUPPORTED_PROTOCOL | [chapter-01](./chapters/chapter-01-markdown-editor.md#15-add-002-增量文档链接跳转2026-09-21-并入) | 协议不在 http/https/mailto 白名单 |
+| 500 | OPEN_EXTERNAL_FAILED | [chapter-01](./chapters/chapter-01-markdown-editor.md#15-add-002-增量文档链接跳转2026-09-21-并入) | 系统默认程序调用失败 |
 | 500 | INTERNAL_ERROR | [chapter-02](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 未分类内部错误 |
 
 ### 数据模型汇总
@@ -71,12 +74,12 @@
 | 字段 | 值 |
 |------|---|
 | 项目名 | markdown-editor |
-| 版本 | 0.1.0(契约 0.1.1) |
-| 当前阶段 | Phase 1 已交付(PR #1,评审 approved);add-001 主题系统已交付 |
+| 版本 | 0.1.0(契约 0.2.0) |
+| 当前阶段 | Phase 1 已交付(PR #1,评审 approved);add-001 主题系统、add-002 文档链接跳转已交付 |
 | 总章节数 | 3 |
-| 总端点数 | 11 |
+| 总端点数 | 12 |
 | 总事件数 | 1 |
-| 测试规模 | 235(vitest 全绿) |
+| 测试规模 | 311(vitest 全绿) |
 | 器灵版本 | 0.5.0 |
 
 **OpenAPI 契约(完整版):** [../../.planning/context/openapi.yaml](../../.planning/context/openapi.yaml)

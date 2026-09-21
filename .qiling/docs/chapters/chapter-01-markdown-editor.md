@@ -87,6 +87,24 @@ docsmap_init: true
 | `src/views/` | `HomeView`(主界面)、`SettingsView`(设置页) |
 | `src/diagram-view/` | 图表独立窗口页面逻辑(配合 `diagram.html` 与 `open_diagram_window`) |
 
+### 1.5 add-002 增量:文档链接跳转(2026-09-21 并入)
+
+> 落点判定:自动判断并入本章——预览渲染管线与链接点击属本章前端核心域,复用 FileIO 域既有 `/ipc/read-file` 端点与 `openFileFromPath` 能力;与 chapter-02(自动保存)/chapter-03(主题)零契约重合(唯一匹配)。
+
+**新端点(第 7 个 Rust command):**
+
+| 端点 | 说明 | 错误码 |
+|------|------|--------|
+| POST `/ipc/open-external` | 用系统默认程序打开外部链接;协议白名单 http/https/mailto(Rust 侧二次校验,白名单外拒绝传递给系统 shell) | 422 UNSUPPORTED_PROTOCOL、500 OPEN_EXTERNAL_FAILED |
+
+**行为增量(无新事件,契约 v0.1.1 → 0.2.0):**
+
+- 预览区 `<a>` 点击事件委托,**所有分支一律 preventDefault**(修复现状缺口:WebView 内点击链接会导航冲掉编辑器);
+- 三分支路由:`#锚点` → 预览内平滑滚动;http/https/mailto → `/ipc/open-external`;相对/工作区路径文档链接 → 解析绝对路径后经 `/ipc/read-file` 在编辑器内打开目标文档(文档间连接);
+- 渲染管线新增自写 rehype 插件 `headingAnchors`(GitHub 风格 slug,CJK 保留,重名 -N 去重),sanitize `clobberPrefix: ''` 让标题 id 保留;
+- 新前端模块:`src/services/externalLinks.ts`(C2 有 web 降级)、`src/markdown/linkResolution.ts`(分类 + 相对路径解析纯函数);
+- 时序与细则见 `.planning/context/event-flow.md`「文档链接跳转约定(add-002)」。
+
 ---
 
 ## 二、项目结构与启动流程
@@ -184,3 +202,4 @@ pnpm ls --depth=0
 |------|------|------|
 | 2026-09-14T14:58:40.221Z | 自动生成 | 由 `/ql-scan` 初始化 |
 | 2026-09-14 | 内容校对 | 修正脚本对 Tauri 桌面应用的误报(伪"HTTP 路由"改为真实 Tauri IPC 命令清单),补全 src-tauri 目录树,包管理器更正为 pnpm |
+| 2026-09-21 | add: 文档链接跳转(open-external 端点 + 标题锚点 id + 预览链接三分支路由)(add-002) | 契约 0.2.0;§一 1.5 增量 |
