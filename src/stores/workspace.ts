@@ -252,7 +252,25 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function openFile() {
     const result = await openMarkdownFile()
     if (!result) return
+    if (guardDirtyTab(result.path)) return
     upsertTab(result.path, result.content)
+  }
+
+  /**
+   * bugfix-003:打开动作命中「已在标签中打开且有未保存修改」的文件时,
+   * 不用磁盘内容静默覆盖(自动保存默认关闭,未保存是常态;目标文件尚未
+   * 落盘用户内容时曾呈现为「跳转到空文档」,dirty 时则是数据丢失),
+   * 按 chapter-02 冲突安全网原则进冲突决策。返回 true 表示已守卫处理。
+   */
+  function guardDirtyTab(path: string): boolean {
+    const existing = tabs.value.find((t) => t.path === path)
+    if (existing && isTabDirty(path)) {
+      existing.status = 'conflict'
+      existing.conflictKind = 'modified'
+      activeTabPath.value = path
+      return true
+    }
+    return false
   }
 
   function upsertTab(path: string, content: string) {
@@ -487,6 +505,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
    * markdown 扩展名由调用方决定（这里对所有文本类都允许，简单一些）。
    */
   async function openFileFromPath(path: string): Promise<boolean> {
+    // bugfix-003:见 guardDirtyTab——链接跳转/文件树/暖启动打开已打开的
+    // dirty 文件时,进冲突安全网而非静默覆盖
+    if (guardDirtyTab(path)) return true
     const content = await readTextFileRaw(path)
     if (content === null) return false
     upsertTab(path, content)
