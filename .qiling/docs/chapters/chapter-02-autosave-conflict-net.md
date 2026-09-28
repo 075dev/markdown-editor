@@ -1,6 +1,7 @@
 ---
 chapter_id: "chapter-02"
 title: "自动保存 + 冲突安全网"
+part: "第二篇 · 功能详解"
 phase: 1
 generated_at: "2026-09-15T01:16:27Z"
 generated_by: "器灵工作流 v0.7.0 / ql-doc"
@@ -8,6 +9,8 @@ ql_version: "0.5.0"
 git_commit: "b9f369ade066ca62c73df59f71b0dbc2ddadfd17"
 pr_url: "https://github.com/075dev/markdown-editor/pull/1"
 status: "shipped"
+endpoints: 9
+events: 1
 ---
 
 # 第 2 章 · 自动保存 + 冲突安全网

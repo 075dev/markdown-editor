@@ -1,6 +1,7 @@
 ---
 chapter_id: "chapter-03"
 title: "主题系统与视觉升级"
+part: "第二篇 · 功能详解"
 phase: 1
 generated_at: "2026-09-15T12:00:00Z"
 generated_by: "器灵工作流 v0.7.0 / ql-add"
@@ -9,6 +10,8 @@ git_commit: "bb30011"
 pr_url: "https://github.com/075dev/markdown-editor/pull/1"
 status: "shipped"
 docsmap_init: false
+endpoints: 0
+events: 0
 ---
 
 # 第 3 章 · 主题系统与视觉升级

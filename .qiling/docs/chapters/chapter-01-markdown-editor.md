@@ -1,93 +1,343 @@
 ---
 chapter_id: "chapter-01"
 title: "markdown-editor"
+part: "第一篇 · 认识项目"
 phase: init
-generated_at: "2026-09-14T14:58:40.220Z"
-generated_by: "器灵工作流 v0.7.0 / ql-scan"
-ql_version: "0.5.0"
+generated_at: "2026-09-28T06:35:34.848Z"
+generated_by: "器灵工作流 v0.18.0 / ql-scan"
+ql_version: "0.18.0"
+last_mapped_commit: "d0a7a5333dad66c8cd877706ba1dd4b906e590ee"
 status: "initialized"
 docsmap_init: true
+scan_path: "."
+scanned_entries: 197
+routes_detected: 0
+events_detected: 0
+commands_detected: 0
+custom_extracts: 8
+endpoints: 0
+events: 0
 ---
 
-# 第 1 章 · markdown-editor(初始化)
+# 第 01 章 · markdown-editor(起步)
 
-> **本文档由 `/ql-scan` 生成** —— 通过阅读项目目录结构,产出与 `/ql-doc` 完全一致格式的初始化章节。
-> 进入开发流程后,新章节由 `/ql-doc` 追加,本章节作为起点。
+> 本章是全书的**第一章**:认识并跑起来。由 `/ql-scan` 阅读代码自动生成。
+> `<!-- manual -->` 块内的内容欢迎人工撰写润色(重扫自动保留);其余机器节不要手改——项目结构变化后用 `/ql-scan --force` 重扫覆盖。
+
+**一句话:** A local-first Markdown editor built with Tauri 2 + Vue 3 + CodeMirror 6.
+
+## 本章导学
+
+<!-- manual:syllabus -->
+- **本章你将学到:** markdown-editor 的 11 个 npm 命令与 8 个 Tauri IPC 命令([§3.5](#三使用说明))怎么用——从把项目跑起来,到按证据核对每一项能力。
+- **前置章节:** 无——本章是全书第一章,从零开始。
+- **读法:** 只想查用 → 直接进 [§三 使用说明](#三使用说明);完整了解 → 按顺序读;赶时间 → 先读章末"本章小结"再回看正文(教科书惯例)。
+
+(以上为生成器初稿;欢迎人工改写学习目标与前置章节)
+<!-- /manual:syllabus -->
+
+## 一、这个功能是什么
+
+<!-- manual:overview -->
+**覆盖能力:**
+
+| 能力 | 数量 | 明细位置 |
+|------|------|----------|
+| npm 命令 | 11 | [§3.1](#三使用说明) |
+| Tauri IPC 命令(Rust 侧注册表) | 8 | [§3.5](#三使用说明) |
+
+**项目形态:** Tauri 2 桌面应用(Rust 壳 + 系统 WebView)+ Vue 3 前端(依据 `package.json` description 与 `src-tauri/` 目录、`@tauri-apps/api` 依赖);关键依赖:`vue`、`vite`、`typescript`、`vitest`(用途为推断)。
+
+> 注:8 个 Tauri IPC 命令经 `--patterns` 自定义提取器从 `generate_handler!` 注册表(`src-tauri/src/lib.rs`)提取。内置提取器面向 HTTP 路由 / `registerCommand` / MCP / CLI 风格,本项目均不使用——附录 C 未检出清单中的相应条目是技术栈形态差异,不是能力缺失。
+
+(以上为生成器初稿;欢迎人工补充:这个项目解决什么问题、什么时候用、不适用什么场景)
+<!-- /manual:overview -->
+
+## 二、快速上手
+
+<!-- manual:quickstart -->
+1. **环境:** Node.js 生态项目(`package.json` 检出)+ Rust 工具链(`pnpm tauri:dev` 经 `scripts/with-rust.mjs` 自动为子进程注入 PATH);包管理器:pnpm
+2. **安装:** `pnpm install`
+3. **运行:** 桌面应用 `pnpm tauri:dev`(Vite dev server 与 Tauri 壳并行);纯 Web 预览 `pnpm dev`(无文件 IO / IPC 能力)
+4. **下一步:** 常用命令清单见 [§3.1](#三使用说明),挑一个命令试跑(如 `pnpm typecheck`)
+
+启动链路(文字版,依据 `package.json` scripts 原样值与 `scripts/with-rust.mjs`):`pnpm tauri:dev` → `with-rust.mjs` 注入 Rust 工具链 PATH → 并行启动 Vite dev server 与 `tauri dev`(Rust 编译 Tauri 壳)→ 壳加载 Vite 页面,前端经 `@tauri-apps/api` invoke 调用 [§3.5](#三使用说明) 的 IPC 命令。
+
+(以上为生成器初稿;欢迎人工补充第一次跑通项目的完整步骤与易踩的坑)
+<!-- /manual:quickstart -->
+
+## 三、使用说明
+
+> 本节所有能力条目均从代码反推,每条附 `文件:行号` 证据;与 OpenAPI 契约的对应关系待 `/ql-design` 后补全。
+
+### 3.1 命令清单(package.json scripts,原样列出)
+
+| 命令 | 实际执行 |
+|------|----------|
+| `npm run dev` | `vite` |
+| `npm run build` | `vue-tsc --noEmit && vite build` |
+| `npm run preview` | `vite preview` |
+| `npm run tauri` | `tauri` |
+| `npm run tauri:dev` | `node scripts/with-rust.mjs tauri dev` |
+| `npm run tauri:build` | `node scripts/with-rust.mjs tauri build` |
+| `npm run typecheck` | `vue-tsc --noEmit` |
+| `npm run test` | `vitest run` |
+| `npm run test:watch` | `vitest` |
+| `npm run lint` | `eslint . --ext .vue,.ts,.tsx --fix` |
+| `npm run format` | `prettier --write "src/**/*.{vue,ts,tsx,css,md}"` |
+
+### 3.5 自定义提取(--patterns)
+
+**Tauri IPC 命令(generate_handler 注册表)**
+
+| 标识 | 证据(文件:行) |
+|------|------------------|
+| `open_diagram_window` | `src-tauri/src/lib.rs:162` |
+| `list_system_fonts` | `src-tauri/src/lib.rs:163` |
+| `watch_file` | `src-tauri/src/lib.rs:164` |
+| `unwatch_file` | `src-tauri/src/lib.rs:165` |
+| `read_file` | `src-tauri/src/lib.rs:166` |
+| `open_external` | `src-tauri/src/lib.rs:167` |
+| `get_plantuml_server_url` | `src-tauri/src/lib.rs:168` |
+| `take_startup_open_path` | `src-tauri/src/lib.rs:169` |
+
+### 3.6 项目结构(目录树,深度 ≤ 4,忽略 node_modules/dist/build/.git 等)
+
+```
+📄 .editorconfig
+📄 .gitignore
+📄 .prettierrc.json
+📄 AGENTS.md
+📄 diagram.html
+📄 eslint.config.js
+📄 index.html
+📄 package.json
+📄 pnpm-workspace.yaml
+📁 public/  # 静态资源(直接对外)(推断)
+  📄 public/favicon.svg
+📄 README.md
+📁 scripts/  # 构建/工具脚本(推断)
+  📄 scripts/build-app-icon.mjs
+  📄 scripts/force-refresh-taskbar.ps1
+  📄 scripts/verify-icon.ps1
+  📄 scripts/verify-plantuml.mjs
+  📄 scripts/with-rust.mjs
+📁 src/  # 源码主目录(推断)
+  📄 src/App.vue
+  📁 src/components/  # UI 组件(推断)
+    📄 src/components/AutoSaveBanner.test.ts
+    📄 src/components/AutoSaveBanner.vue
+    📄 src/components/ContextMenu.vue
+    📄 src/components/EditorPane.reload-error.test.ts
+    📄 src/components/EditorPane.vue
+    📄 src/components/FolderTreeNode.vue
+    📄 src/components/PreviewPane.links.test.ts
+    📄 src/components/PreviewPane.test.ts
+    📄 src/components/PreviewPane.vue
+    📄 src/components/Sidebar.vue
+    📄 src/components/TitleBar.vue
+  📁 src/composables/
+    📄 src/composables/useAutoSave.test.ts
+    📄 src/composables/useAutoSave.ts
+    📄 src/composables/useContextMenu.test.ts
+    📄 src/composables/useContextMenu.ts
+    📄 src/composables/useEditorScrollSync.test.ts
+    📄 src/composables/useEditorScrollSync.ts
+  📁 src/diagram-view/
+    📄 src/diagram-view/diagram.ts
+  📁 src/editor/
+    📄 src/editor/createEditor.ts
+    📄 src/editor/markdownLanguage.ts
+    📄 src/editor/panzoomToolbar.test.ts
+    📄 src/editor/panzoomToolbar.ts
+    📄 src/editor/selectionLineFill.ts
+  📄 src/main.ts
+  📁 src/markdown/
+    📄 src/markdown/codeHighlight.test.ts
+    📄 src/markdown/codeHighlight.ts
+    📄 src/markdown/headingAnchors.test.ts
+    📄 src/markdown/headingAnchors.ts
+    📄 src/markdown/linkResolution.test.ts
+    📄 src/markdown/linkResolution.ts
+    📄 src/markdown/outline.test.ts
+    📄 src/markdown/outline.ts
+    📄 src/markdown/pipeline.test.ts
+    📄 src/markdown/pipeline.ts
+    📄 src/markdown/plantumlHighlight.test.ts
+    📄 src/markdown/plantumlHighlight.ts
+    📄 src/markdown/plantumlRehype.test.ts
+    📄 src/markdown/plantumlRehype.ts
+    📄 src/markdown/stripDiagramCode.test.ts
+    📄 src/markdown/stripDiagramCode.ts
+  📁 src/router/
+    📄 src/router/index.ts
+  📁 src/services/  # 业务服务层(推断)
+    📄 src/services/diagramWindow.test.ts
+    📄 src/services/diagramWindow.ts
+    📄 src/services/editorClipboard.test.ts
+    📄 src/services/editorClipboard.ts
+    📄 src/services/env.ts
+    📄 src/services/errors.test.ts
+    📄 src/services/errors.ts
+    📄 src/services/externalLinks.test.ts
+    📄 src/services/externalLinks.ts
+    📄 src/services/fileService.save-errors.test.ts
+    📄 src/services/fileService.ts
+    📄 src/services/fontService.test.ts
+…(共 197 项,已截断显示前 80 项;完整清单请直接浏览目录或收窄 --scan-path)
+```
 
 ---
 
-## 章节摘要
+## 四、配置与限制
+
+### 4.1 技术栈
+
+**语言分布(按文件扩展名统计):**
+
+| 扩展名 | 文件数 | 占比 |
+|--------|--------|------|
+| .ts | 67 | 41.1% |
+| .png | 49 | 30.1% |
+| .json | 10 | 6.1% |
+| .vue | 10 | 6.1% |
+| .mjs | 3 | 1.8% |
+| .rs | 3 | 1.8% |
+| .md | 2 | 1.2% |
+| .html | 2 | 1.2% |
+
+**框架/关键依赖(推断自 package.json):**
+
+| 依赖 | 用途(推断) | 版本 | 运行时 | 范围 |
+|------|--------------|------|--------|------|
+| `vue` | 前端框架 | ^3.5.12 | Node.js | prod |
+| `vite` | 构建工具 | ^5.4.8 | Node.js | dev |
+| `typescript` | 语言/类型 | ~5.6.2 | Node.js | dev |
+| `vitest` | 测试框架 | ^2.1.2 | Node.js | dev |
+| `eslint` | 代码检查 | ^9.12.0 | Node.js | dev |
+
+**包管理器:** pnpm
+
+**入口(main/bin):** 未声明
+
+
+
+### 4.2 依赖清单
+
+| 依赖 | 版本 | 范围 |
+|------|------|------|
+| `@codemirror/autocomplete` | ^6.18.1 | prod |
+| `@codemirror/commands` | ^6.7.1 | prod |
+| `@codemirror/lang-markdown` | ^6.3.0 | prod |
+| `@codemirror/language` | ^6.10.2 | prod |
+| `@codemirror/language-data` | ^6.5.1 | prod |
+| `@codemirror/search` | ^6.5.6 | prod |
+| `@codemirror/state` | ^6.4.1 | prod |
+| `@codemirror/view` | ^6.34.1 | prod |
+| `@lezer/highlight` | ^1.2.1 | prod |
+| `@tauri-apps/api` | ^2.11.1 | prod |
+| `@tauri-apps/plugin-dialog` | ^2.7.2 | prod |
+| `@tauri-apps/plugin-fs` | ^2.5.1 | prod |
+| `katex` | ^0.16.11 | prod |
+| `mermaid` | ^11.4.0 | prod |
+| `panzoom` | ^9.4.4 | prod |
+| `pinia` | ^2.2.4 | prod |
+| `plantuml-encoder` | ^1.4.0 | prod |
+| `rehype-sanitize` | ^6.0.0 | prod |
+| `rehype-stringify` | ^10.0.1 | prod |
+| `remark-gfm` | ^4.0.0 | prod |
+| `remark-parse` | ^11.0.0 | prod |
+| `remark-rehype` | ^11.1.1 | prod |
+| `unified` | ^11.0.5 | prod |
+| `unist-util-visit` | ^5.1.0 | prod |
+| `vue` | ^3.5.12 | prod |
+| `vue-router` | ^4.4.5 | prod |
+| `@tauri-apps/cli` | ^2.11.4 | dev |
+| `@types/hast` | ^3.0.5 | dev |
+| `@types/katex` | ^0.16.7 | dev |
+| `@types/node` | ^22.7.4 | dev |
+| `@vitejs/plugin-vue` | ^5.1.4 | dev |
+| `@vue/test-utils` | ^2.4.6 | dev |
+| `eslint` | ^9.12.0 | dev |
+| `eslint-plugin-vue` | ^9.28.0 | dev |
+| `jsdom` | ^25.0.1 | dev |
+| `prettier` | ^3.3.3 | dev |
+| `sharp` | ^0.35.3 | dev |
+| `typescript` | ~5.6.2 | dev |
+| `vite` | ^5.4.8 | dev |
+| `vitest` | ^2.1.2 | dev |
+| `vue-tsc` | ^2.1.6 | dev |
+
+---
+
+## 五、故障排查
+
+**把项目跑起来**
+
+- 启动链路未能自动检出(原因见附录 C):先确认依赖已安装,再按 `package.json` 的 `scripts` 与项目 README 人工确认启动方式。
+
+**能力清单看起来太少?**
+
+- 本扫描器识别 npm scripts、HTTP 路由(`app.get()` 类惯例)、事件发布(`emitter.emit()` / `this._onX.fire()` 惯例)、命令/工具注册(`registerCommand` / MCP tool / CLI command)。项目若用其他注册风格,用 `--patterns` 自定义提取器补充后重扫。
+
+**怀疑文档过期?**
+
+- 用附录 C 的基线 commit 自查:`git log --oneline <基线>..HEAD`;项目结构大改后用 `/ql-scan --force` 重扫。
+
+---
+
+## 本章小结
+
+<!-- manual:summary -->
+- 本章认识了 markdown-editor:11 个 npm 命令、8 个 Tauri IPC 命令([§3.5](#三使用说明))。
+- 桌面端启动:`pnpm tauri:dev`(链路见 [§二](#二快速上手));纯前端预览:`pnpm dev`。
+- 完整能力清单与证据在 [§三](#三使用说明);配置与限制在 [§四](#四配置与限制)。
+
+(以上为生成器初稿;欢迎人工改写要点回顾)
+<!-- /manual:summary -->
+
+## 下一章
+
+<!-- manual:next -->
+- 本书现有 3 章:本章(认识项目)之后是第二篇功能详解——[第 02 章 · 自动保存 + 冲突安全网](./chapter-02-autosave-conflict-net.md)、[第 03 章 · 主题系统与视觉升级](./chapter-03-theme-system.md);后续交付按篇追加。
+- 想先动手?回到 [§二 快速上手](#二快速上手) 把命令跑一遍。
+
+(以上为生成器初稿;欢迎人工按学习路径指定下一章——不必等于交付顺序)
+<!-- /manual:next -->
+
+---
+
+## 附录 A · 交付与开发留档
+
+(本附录面向维护者与 AI 审计,使用者可跳过)
+
+### A.1 扫描信息
 
 | 字段 | 值 |
 |------|---|
-| 章节 ID | chapter-01 |
 | 来源命令 | /ql-scan |
 | 扫描路径 | . |
-| 项目名 | markdown-editor |
-| 项目描述 | A local-first Markdown editor built with Tauri 2 + Vue 3 + CodeMirror 6 |
-| 命令数(pnpm scripts) | 11 |
-| Tauri IPC 命令数 | 6 |
-| 事件数 | 1 |
-| 源码文件数(排除构建产物) | 143 |
-| 状态 | initialized |
+| 扫描基线 commit | d0a7a5333dad66c8cd877706ba1dd4b906e590ee |
+| 扫描条目数 | 197(目录树显示 80) |
+| 生成时间 | 2026-09-28T06:35:34.848Z |
 
----
+### A.2 新代码放哪(推断指引)
 
-## 一、本章节承载的能力(从代码扫描)
+| 要新增的内容 | 建议位置(推断) |
+|--------------|------------------|
+| API 端点 | 遵循项目现有分层;若无路由目录,建议新建 routes/ 并在入口注册 |
+| 业务逻辑 | 与现有模块就近放置,保持单一入口 |
+| 测试 | 跟随现有测试目录,与被测文件同名 |
 
-### 1.1 命令清单(package.json scripts,包管理器 pnpm)
+### A.3 下一步
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev` | vite(纯 Web 模式开发) |
-| `pnpm build` | vue-tsc --noEmit && vite build |
-| `pnpm preview` | vite preview |
-| `pnpm tauri` | tauri(CLI 直调) |
-| `pnpm tauri:dev` | node scripts/with-rust.mjs tauri dev(桌面开发,自动注入 Rust 工具链 PATH) |
-| `pnpm tauri:build` | node scripts/with-rust.mjs tauri build(桌面打包) |
-| `pnpm typecheck` | vue-tsc --noEmit |
-| `pnpm test` | vitest run |
-| `pnpm test:watch` | vitest |
-| `pnpm lint` | eslint . --ext .vue,.ts,.tsx --fix |
-| `pnpm format` | prettier --write "src/**/*.{vue,ts,tsx,css,md}" |
+- 尚无 OpenAPI 契约 → 运行 `/ql-design` 生成契约(§3.2 路由清单可作为讨论输入)
+- 已有 OpenAPI 契约 → 运行 `/ql-build` 直接构建
 
-### 1.2 Tauri IPC 命令(前后端能力边界,Rust 端定义)
+### A.4 add-002 增量留档:文档链接跳转(2026-09-21 并入)
 
-本项目是 Tauri 2 桌面应用,**无 HTTP 路由**;前后端能力边界由 `#[tauri::command]` 构成,全部定义在 `src-tauri/src/lib.rs`:
-
-| 命令 | 说明 | 定义位置 |
-|------|------|----------|
-| `read_file` | 读取本地文件内容 | `src-tauri/src/lib.rs:404` |
-| `watch_file` | 监听文件外部修改(同路径 1s 节流) | `src-tauri/src/lib.rs:320` |
-| `unwatch_file` | 取消文件监听 | `src-tauri/src/lib.rs:397` |
-| `open_diagram_window` | 在独立窗口中打开图表(Mermaid/PlantUML)查看 | `src-tauri/src/lib.rs:174` |
-| `list_system_fonts` | 枚举系统字体(设置页字体选择) | `src-tauri/src/lib.rs:248` |
-| `get_plantuml_server_url` | 读取 PlantUML 服务器地址配置 | `src-tauri/src/lib.rs:577` |
-
-前端经 `src/services/` 下的 `fileService.ts`、`fontService.ts`、`diagramWindow.ts` 通过 `invoke()` 调用,与 Rust 端 6 个命令一一对应。
-
-### 1.3 事件(Tauri event)
-
-| 事件名 | 发布方 → 订阅方 | 说明 |
-|--------|------------------|------|
-| `file-external-change` | Rust(`lib.rs:371` emit)→ 前端 | 被监听文件被外部修改时推送,前端自动重载编辑器内容 |
-
-> **说明:** 除该事件外,前后端通信均为 `invoke` 同步调用,无其他事件总线。这些是从代码反推的"已存在能力",与 OpenAPI 契约的对应关系待 `/ql-design` 后补全。
-
-### 1.4 前端核心模块(从目录结构反推)
-
-| 模块 | 职责 |
-|------|------|
-| `src/editor/` | CodeMirror 6 编辑器创建(`createEditor.ts`)、markdown 语言支持、平移缩放工具栏、选区行填充 |
-| `src/markdown/` | unified 渲染管线(`pipeline.ts`)、shiki 代码高亮、PlantUML 高亮与 rehype 插件、大纲提取 |
-| `src/services/` | 文件 IO、字体、图表窗口、剪贴板、选区、mermaid 渲染、环境判断 |
-| `src/stores/` | Pinia 状态:`workspace`(文件树/标签页)、`settings`(编辑器与字体设置) |
-| `src/composables/` | `useEditorScrollSync`(编辑/预览滚动同步)、`useContextMenu` |
-| `src/components/` | `EditorPane`、`PreviewPane`、`Sidebar`、`TitleBar`、`ContextMenu`、`FolderTreeNode` |
-| `src/views/` | `HomeView`(主界面)、`SettingsView`(设置页) |
-| `src/diagram-view/` | 图表独立窗口页面逻辑(配合 `diagram.html` 与 `open_diagram_window`) |
-
-### 1.5 add-002 增量:文档链接跳转(2026-09-21 并入)
+<!-- manual:increment -->
+> 本节为 add-002 交付时点的留档原文(由旧版章节 §1.5 迁入,史实保留;"第 7 个 Rust command"为当时口径,现注册表共 8 个,见 §3.5)。另注:上方 A.3 的"尚无 OpenAPI 契约"是脚本静态指引文本——实际契约已存在(`.planning/context/openapi.yaml` v0.2.0,12 个 /ipc 端点),增量交付应走 `/ql-add`。
 
 > 落点判定:自动判断并入本章——预览渲染管线与链接点击属本章前端核心域,复用 FileIO 域既有 `/ipc/read-file` 端点与 `openFileFromPath` 能力;与 chapter-02(自动保存)/chapter-03(主题)零契约重合(唯一匹配)。
 
@@ -104,102 +354,41 @@ docsmap_init: true
 - 渲染管线新增自写 rehype 插件 `headingAnchors`(GitHub 风格 slug,CJK 保留,重名 -N 去重),sanitize `clobberPrefix: ''` 让标题 id 保留;
 - 新前端模块:`src/services/externalLinks.ts`(C2 有 web 降级)、`src/markdown/linkResolution.ts`(分类 + 相对路径解析纯函数);
 - 时序与细则见 `.planning/context/event-flow.md`「文档链接跳转约定(add-002)」。
+<!-- /manual:increment -->
 
 ---
 
-## 二、项目结构与启动流程
+## 附录 B · 与上一章节对比
 
-### 2.1 目录树(手工校对版,排除 target/gen/node_modules/dist)
-
-```
-markdown-editor/
-├── index.html                  # Web 入口
-├── diagram.html                # 图表独立窗口页
-├── vite.config.ts / tsconfig.json / tsconfig.node.json
-├── eslint.config.js / .prettierrc.json / .editorconfig
-├── package.json / pnpm-lock.yaml / pnpm-workspace.yaml
-├── AGENTS.md / README.md
-├── public/
-│   └── favicon.svg
-├── scripts/
-│   ├── with-rust.mjs           # 为 npm 子进程注入 Rust 工具链 PATH
-│   ├── build-app-icon.mjs      # 应用图标生成
-│   ├── verify-plantuml.mjs     # PlantUML 渲染验证
-│   ├── force-refresh-taskbar.ps1 / verify-icon.ps1  # Windows 任务栏图标诊断
-│   └── docsmap.mjs             # (临时,/ql-scan 运行后已清理)
-├── tests/
-│   └── setup.ts                # Vitest 全局 setup
-├── src/
-│   ├── main.ts / App.vue / shims.d.ts
-│   ├── router/index.ts
-│   ├── components/             # EditorPane / PreviewPane / Sidebar / TitleBar / ContextMenu / FolderTreeNode
-│   ├── composables/            # useEditorScrollSync / useContextMenu(含测试)
-│   ├── diagram-view/           # diagram.ts 图表窗口逻辑
-│   ├── editor/                 # createEditor / markdownLanguage / panzoomToolbar / selectionLineFill
-│   ├── markdown/               # pipeline / codeHighlight / outline / plantumlHighlight / plantumlRehype / stripDiagramCode(含测试)
-│   ├── services/               # fileService / fontService / diagramWindow / editorClipboard / selection / mermaid / env(含测试)
-│   ├── stores/                 # workspace / settings(含测试)
-│   ├── styles/global.css
-│   ├── types/
-│   └── views/                  # HomeView / SettingsView
-└── src-tauri/
-    ├── tauri.conf.json / Cargo.toml / build.rs
-    ├── capabilities/default.json
-    ├── resources/plantuml.jar  # PlantUML 本地渲染
-    ├── icons/                  # 应用图标
-    └── src/
-        ├── main.rs             # 入口
-        └── lib.rs              # 全部 6 个 tauri command + 文件监听
-```
-
-### 2.2 启动流程
-
-```mermaid
-flowchart LR
-    A[pnpm tauri:dev] --> B[with-rust.mjs 注入 PATH]
-    B --> C[Vite dev server]
-    B --> D[cargo build Tauri 壳]
-    D --> E[main.rs → lib.rs run]
-    E --> F[注册 6 个 tauri command]
-    C --> G[Vue 3 App]
-    G --> H[CodeMirror 6 源码编辑]
-    G --> I[unified 管线实时预览]
-    H --> J[invoke IPC]
-    I --> J
-    J --> F
-```
-
-桌面模式入口为 `pnpm tauri:dev`:`scripts/with-rust.mjs` 先把 `~/.cargo/bin` 注入子进程 PATH,再拉起 `tauri dev`(内嵌 Vite);纯 Web 预览可用 `pnpm dev`(无文件 IO 能力,走 `src/services/env.ts` 环境降级)。
-
-### 2.3 模块依赖
-
-前端分层:`views → components → composables/services → stores → editor/markdown`;Rust 侧 `lib.rs` 是唯一 IPC 面(6 个 command + 1 个 event)。具体依赖列表:
-
-```bash
-pnpm ls --depth=0
-```
+无(本章节为初始化章节,是文档树的第一个节点;后续交付章节的对比见各章节附录 B)。
 
 ---
 
-## 三、与上一章节的对比
+## 附录 C · 数据来源与验证
 
-无(本章节为首个文档树节点)。
+### C.1 关联文档
 
----
-
-## 四、关联文档
-
-- [项目 README](../../../README.md)
-- [工作区约定 AGENTS.md](../../../AGENTS.md)
 - [文档树索引](../README.md)
-- 项目状态 `.qiling/STATE.md`、OpenAPI 契约 `.qiling/context/openapi.yaml` —— 尚未生成,待 `/ql-design` 初始化后补全
+- 项目状态:[../.planning/STATE.md](../../.planning/STATE.md)
+- OpenAPI 契约:[.planning/context/openapi.yaml](../../.planning/context/openapi.yaml)
 
----
+### C.2 未检出清单
 
-## 五、变更日志
+| 项 | 状态 | 原因 | 建议 |
+|----|------|------|------|
+| HTTP 路由 | 未检出(Not detected) | 未在路由语境文件(`*routes*`/`*router*`/`*controller*` 或 `app.xxx()` 调用)中发现端点声明 | 若使用装饰器/配置式等其他路由风格,用 `--patterns` 自定义提取器补充,或运行 `/ql-design` 生成契约 |
+| 事件发布 | 未检出(Not detected) | 未发现 `emitter.emit()` / `bus.publish()` / `this._onX.fire()` 类调用 | 若使用其他事件惯例,用 `--patterns` 自定义提取器补充 |
+| 命令/工具注册 | 未检出(Not detected) | 未发现 `registerCommand` / MCP `server.tool` / CLI `program.command` 类调用 | 若项目有其他注册风格,用 `--patterns` 自定义提取器补充 |
+| 启动链路 | 未检出(Not detected) | package.json 无 main/bin 字段 | 以项目 README 或 `package.json` 的 scripts 为准人工确认 |
+
+### C.3 证据与推断约定
+
+- §三 各表中的 `文件:行号` 是**证据锚点**——每条能力均从代码反推,可对照源码核实。
+- 带"(推断)"的内容(目录职责、依赖用途、新代码位置)来自命名约定词典,**是推断而非事实**,以实际代码为准。
+- 新鲜度:frontmatter `last_mapped_commit` 即生成时的 git HEAD;运行 `git log --oneline <基线>..HEAD` 判断文档是否过期。
+
+### C.4 变更日志
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
-| 2026-09-14T14:58:40.221Z | 自动生成 | 由 `/ql-scan` 初始化 |
-| 2026-09-14 | 内容校对 | 修正脚本对 Tauri 桌面应用的误报(伪"HTTP 路由"改为真实 Tauri IPC 命令清单),补全 src-tauri 目录树,包管理器更正为 pnpm |
-| 2026-09-21 | add: 文档链接跳转(open-external 端点 + 标题锚点 id + 预览链接三分支路由)(add-002) | 契约 0.2.0;§一 1.5 增量 |
+| 2026-09-28T06:35:34.848Z | 自动生成 | 由 `/ql-scan` 初始化,基线 commit `d0a7a533` |
