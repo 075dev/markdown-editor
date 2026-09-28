@@ -230,6 +230,22 @@ export async function listDirectory(path: string): Promise<DirEntry[]> {
   return isTauri() ? tauriListDir(path) : []
 }
 
+/**
+ * 把工作区目录加入 plugin-fs 运行时白名单(bugfix-004,递归放行子目录)。
+ * capabilities 的 fs:scope 只静态放行 $HOME 等固定位置,对话框选择的任意
+ * 位置工作区(如 D:\)不授权则 readDir 被 forbidden——文件树整体索引失败。
+ * Web 模式无此机制,直接返回。
+ */
+export async function allowWorkspaceDir(path: string): Promise<void> {
+  if (!isTauri()) return
+  const { invoke } = await import('@tauri-apps/api/core')
+  try {
+    await invoke('allow_workspace_dir', { path })
+  } catch (err) {
+    throw normalizeError(err)
+  }
+}
+
 /* ---------- 文件监听（外部修改自动重载） ---------- */
 
 import type { UnlistenFn } from '@tauri-apps/api/event'

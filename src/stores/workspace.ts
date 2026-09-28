@@ -6,6 +6,7 @@ import {
   createNewFile,
   pickWorkspaceDirectory,
   listDirectory,
+  allowWorkspaceDir,
   watchFileExternal,
   unwatchFileExternal,
   readTextFile as readTextFileRaw,
@@ -442,6 +443,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function chooseWorkspace() {
     const dir = await pickWorkspaceDirectory()
     if (!dir) return
+    // bugfix-004:先运行时授权(fs:scope 动态放行),否则白名单外位置的工作区
+    // 在 plugin-fs readDir 时被 forbidden——文件树(含子目录)整体索引失败
+    await allowWorkspaceDir(dir)
     rootPath.value = dir
     // 切换工作区时清掉旧缓存——避免新旧根路径的 children 错位。
     treeChildrenCache.clear()
