@@ -117,3 +117,17 @@ fill-report 第三节对照表 **9/9 属实**。自动保存核心参数与流�
   - 冲突横幅文案与按钮动作同源:按 conflict 标签列表逐条渲染(AutoSaveBanner.vue:17、:56、:64),决策支持按 path(workspace.ts:148、:177),F3 错位关闭。
   - 「用磁盘版本」不再假 clean:读盘成功且确认仍是同一 conflict 标签后才落 Clean(workspace.ts:177-206),失败保持 Conflict + error 通知;EditorPane 经 mde:reload-tab 携带 content 刷新、免二次读盘(EditorPane.vue:94),F4 关闭。
 - 残留:F5-F8(minor)处置见 review.md 处置账本追加节(DEFERRED);A3 ESLint PRE-EXISTING 缺依赖未变。
+
+---
+
+## bugfix-003 验证补记(2026-09-28)
+
+| # | 验证项 | 结果 | 证据 |
+|---|--------|------|------|
+| B1 | 定向 `vitest run src/components/PreviewPane.links-e2e.test.ts` | PASS | 6/6(mock 下沉到 invoke 桥 + 真实临时文件;dirty 保留用例修复前以 bug 方式失败:`expected '# next real content\n' to be '未保存的宝贵修改'`) |
+| B2 | 全量 `pnpm test` | PASS | 317/317(33 文件),0 unhandled |
+| B3 | `pnpm typecheck` / `pnpm build` | PASS | vue-tsc 0 错误;build 7.89s |
+| B4 | 真机终验(Tauri dev + WebView2 CDP,页面内直驱真实 Pinia store) | PASS | dirty target.md 经链接跳转:content 保留 + `status=conflict` + `conflictKind=modified` + 目标标签激活(修复前为磁盘内容覆盖) |
+| B5 | 证伪实验(ql-reviewer 独立) | PASS | `git stash` 回退修复 → 全量重跑唯一变红 = B1 的 dirty 保留用例;恢复后全绿 |
+
+- 结论:`guardDirtyTab` 守卫(openFileFromPath/openFile 双入口)与既有冲突安全网(handleExternalChange → conflict、resolveConflictKeepMine/UseDisk、AutoSaveBanner 逐标签双按钮)语义同构,评审 approved(0 critical/3 non-critical)。详见 `.planning/bugfix/003-link-jump-overwrites-unsaved.md`。

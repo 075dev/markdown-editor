@@ -61,6 +61,7 @@ event_messages_count: 1
 ## 缺陷修复(不推进 phase)
 - bugfix-001(2026-09-15): 默认打开方式启动时不打开文档 —— 状态 fixed,评审 approved(0 critical)。修复 a5582d4:冷启 argv 暂存 + take_startup_open_path + HomeView 启动打开 + fileAssociations 打包声明。遗留:暖启动 argv 转发(N2,建议 tauri-plugin-single-instance)、安装级双击实测(N3)。详见 .planning/bugfix/001-file-association-open.md
 - bugfix-002(2026-09-15): 安装后仅首次能打开、关闭后再也打不开 —— 状态 fixed,评审 approved(0 critical/0 major)。根因:自研 lockfile 单实例锁误判"句柄释放时 OS 删除文件",锁残留挡死二次启动。修复 7a3a53a:改 tauri-plugin-single-instance 2.4.4(OS 原生 mutex),顺带闭环 bugfix-001 遗留 N2(暖启动 argv 转发)。遗留 4 项 minor(emit 竞态/插件窗口期/测试锁定缺口/分隔符边缘)。详见 .planning/bugfix/002-single-instance-lock-stuck.md
+- bugfix-003(2026-09-28): 文档链接跳转把未保存内容覆盖为磁盘版本(目标为空文件时呈现为「跳转到空文档」)—— 状态 fixed,评审 approved(0 critical/3 non-critical)。根因:openFileFromPath 对已打开的 dirty 标签无条件 upsertTab 覆盖,违反冲突安全网原则;自动保存默认关闭放大触发面。修复 6db9b3f:guardDirtyTab 守卫(openFileFromPath + openFile 双入口),命中 dirty → conflict/modified 由用户决策;回归 PreviewPane.links-e2e.test.ts 6 例(全量 317/317),真机 CDP 终验通过。遗留:空文件跳转语境提示(UX)、newFile 对话框覆盖边缘(PRE-EXISTING)。详见 .planning/bugfix/003-link-jump-overwrites-unsaved.md
 
 ## 功能追加(add)
 - add-001(2026-09-15): 六主题 + 全面视觉升级 → 新建 chapter-03,评审 approved(1 major 已修)。详见 .planning/add/001-theme-system.md
