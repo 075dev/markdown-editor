@@ -67,3 +67,4 @@ event_messages_count: 1
 ## 功能追加(add)
 - add-001(2026-09-15): 六主题 + 全面视觉升级 → 新建 chapter-03,评审 approved(1 major 已修)。详见 .planning/add/001-theme-system.md
 - add-002(2026-09-21): 文档链接跳转 → 并入 chapter-01(§1.5),评审 approved(0 critical)。/ipc/open-external 新端点 + headingAnchors slug 插件 + 预览链接三分支路由(全分支 preventDefault);测试 235→311。遗留 4 minor DEFERRED。详见 .planning/add/002-doc-links.md
+- add-003(2026-09-28): 预览正文染色主题 → 并入 chapter-03(§1.5,用户确认落点),评审 approved(2 轮,首轮 1 critical 已修)。纯前端:contentTheme 偏好(follow/paper/sepia/parchment/night,默认 follow)+ --content-* 内容语义层(11 变量)+ 预览区元素切换 + 设置页下拉;契约 0.2.1(仅行为约定);测试 320→327。遗留:parchment blockquote 对比度按评审方案 #665a40 闭环。详见 .planning/add/003-content-theme.md

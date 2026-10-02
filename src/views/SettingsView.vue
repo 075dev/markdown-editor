@@ -8,7 +8,10 @@ import {
   FONT_SIZE_DEFAULT,
   THEMES,
   THEME_LABELS,
+  CONTENT_THEMES,
+  CONTENT_THEME_LABELS,
   type Theme,
+  type ContentTheme,
   type ViewMode,
 } from '@/stores/settings'
 import { listSystemFonts, clearFontCache, type FontList } from '@/services/fontService'
@@ -35,6 +38,10 @@ const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
   { value: 'split', label: '双栏', hint: '编辑器 + 预览' },
   { value: 'preview', label: '纯预览', hint: '只显示预览' },
 ]
+
+/** 正文染色方案选项(add-003;select 渲染顺序 = CONTENT_THEMES 声明序) */
+const contentThemeOptions: Array<{ value: ContentTheme; label: string }> =
+  CONTENT_THEMES.map((value) => ({ value, label: CONTENT_THEME_LABELS[value] }))
 
 async function refreshFonts() {
   loading.value = true
@@ -178,6 +185,26 @@ onMounted(() => {
                 >✓</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">正文染色</span>
+            <span class="settings__row-hint">预览区正文的独立配色(与界面主题分开)</span>
+          </div>
+          <div class="settings__row-control">
+            <select
+              :value="settings.contentTheme"
+              class="settings__select"
+              data-testid="content-theme-select"
+              aria-label="正文染色主题"
+              @change="settings.setContentTheme(($event.target as HTMLSelectElement).value as ContentTheme)"
+            >
+              <option v-for="c in contentThemeOptions" :key="c.value" :value="c.value">
+                {{ c.label }}
+              </option>
+            </select>
           </div>
         </div>
 

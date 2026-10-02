@@ -418,3 +418,86 @@ a:hover {
 .cm-md-list {
   color: var(--accent-text);
 }
+
+/* ============================================================
+ * 内容染色语义层(add-003)
+ * - 预览区正文的独立配色方案,与 UI 主题(界面壳)正交;
+ * - follow(默认)不写 data-content-theme 属性,下面的默认映射
+ *   让正文外观与 add-001 完全一致;
+ * - 其余方案由 :root[data-content-theme='...'] 覆盖语义变量,
+ *   仅作用于 .preview-pane__body / .markdown-body(见 PreviewPane)。
+ * ============================================================ */
+
+:root {
+  --content-bg: var(--bg);
+  --content-text: var(--text-1);
+  --content-heading: var(--text-1);
+  --content-text-2: var(--text-2);
+  --content-link: var(--accent);
+  --content-quote-bg: var(--bg-elev);
+  --content-quote-border: var(--accent);
+  --content-code-bg: var(--code-bg);
+  --content-code-border: var(--code-border);
+  --content-table-border: var(--border);
+  --content-hr: var(--border);
+}
+
+/* ---------- paper 纸张(暖白底 + 暖近黑字) ---------- */
+:root[data-content-theme='paper'] {
+  --content-bg: #fdfcf9;
+  --content-text: #26241f;
+  --content-heading: #1c1a16;
+  --content-text-2: #6b675e;
+  --content-link: #9a6b1f;
+  --content-quote-bg: #f7f4ec;
+  --content-quote-border: #c9b98a;
+  --content-code-bg: #f4f1e8;
+  --content-code-border: #e4dfd2;
+  --content-table-border: #e0dccf;
+  --content-hr: #d8d3c4;
+}
+
+/* ---------- sepia 护眼米黄(经典护眼底 + 深棕字) ---------- */
+:root[data-content-theme='sepia'] {
+  --content-bg: #f5eed6;
+  --content-text: #3d3526;
+  --content-heading: #322b1d;
+  --content-text-2: #6b6149;
+  --content-link: #7d5a12;
+  --content-quote-bg: #ede5cb;
+  --content-quote-border: #bfa96f;
+  --content-code-bg: #ece4c9;
+  --content-code-border: #ddd2b0;
+  --content-table-border: #d9cda9;
+  --content-hr: #cfc39e;
+}
+
+/* ---------- parchment 羊皮纸(黄褐底 + 棕黑字) ---------- */
+:root[data-content-theme='parchment'] {
+  --content-bg: #ece1c4;
+  --content-text: #453722;
+  --content-heading: #382c19;
+  --content-text-2: #665a40;
+  --content-link: #8c5e10;
+  --content-quote-bg: #e4d7b4;
+  --content-quote-border: #b09a63;
+  --content-code-bg: #e3d6b2;
+  --content-code-border: #d3c294;
+  --content-table-border: #cfc08e;
+  --content-hr: #c4b482;
+}
+
+/* ---------- night 夜间内容(深底浅字,可配浅色 UI 主题单独调暗内容区) ---------- */
+:root[data-content-theme='night'] {
+  --content-bg: #16181d;
+  --content-text: #c9cdd6;
+  --content-heading: #e6e9ef;
+  --content-text-2: #8b93a3;
+  --content-link: #7aa2f7;
+  --content-quote-bg: #1d2026;
+  --content-quote-border: #3d4453;
+  --content-code-bg: #1c1f26;
+  --content-code-border: #2a2f3a;
+  --content-table-border: #2f3541;
+  --content-hr: #3a4150;
+}

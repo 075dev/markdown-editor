@@ -219,16 +219,25 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   padding: 24px 32px;
   overflow: auto;
   line-height: 1.75;
+  /* 正文染色主题(add-003):内容区底色与文字走 --content-* 语义层 */
+  background: var(--content-bg);
+  color: var(--content-text);
 }
 </style>
 
 <style>
+/* 正文链接显式化为主题化 --content-link(此前经全局 a 规则染 UI accent 色;
+ * follow 模式渲染结果恒等;约定见 event-flow.md add-003) */
+.markdown-body a {
+  color: var(--content-link);
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
   margin-top: 1.4em;
   margin-bottom: 0.6em;
-  color: var(--text-1);
+  color: var(--content-heading);
 }
 
 .markdown-body p {
@@ -237,15 +246,15 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 
 .markdown-body code {
   font-family: var(--font-mono);
-  background: var(--code-bg);
+  background: var(--content-code-bg);
   padding: 1px 6px;
   border-radius: calc(var(--radius) - 3px);
   font-size: 0.92em;
 }
 
 .markdown-body pre {
-  background: var(--code-bg);
-  border: 1px solid var(--code-border);
+  background: var(--content-code-bg);
+  border: 1px solid var(--content-code-border);
   padding: 12px 14px;
   border-radius: var(--radius);
   overflow: auto;
@@ -285,11 +294,11 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--content-quote-border);
   margin: 0.8em 0;
   padding: 4px 12px;
-  color: var(--text-2);
-  background: var(--bg-elev);
+  color: var(--content-text-2);
+  background: var(--content-quote-bg);
 }
 
 .markdown-body table {
@@ -300,7 +309,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--content-table-border);
   padding: 6px 10px;
   text-align: left;
 }
@@ -312,7 +321,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 
 .markdown-body hr {
   border: none;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--content-hr);
   margin: 1.5em 0;
 }
 
@@ -321,7 +330,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
   position: relative;
   margin: 1em 0;
   padding: 12px;
-  background: var(--bg-elev);
+  background: var(--content-quote-bg);
   border-radius: var(--radius);
   text-align: center;
   overflow: hidden;
@@ -376,7 +385,7 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
  */
 .markdown-body pre.language-mermaid {
   text-align: center;
-  background: var(--bg);
+  background: var(--content-bg);
   padding: 12px;
 }
 .markdown-body pre.language-mermaid svg {

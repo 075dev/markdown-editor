@@ -29,6 +29,28 @@ function resolveTheme(value: unknown): Theme {
   return isTheme(value) ? value : 'light'
 }
 
+/** 正文染色主题(add-003):预览区正文的独立配色方案,与 UI 主题正交;新增方案须同步扩展 global.css 的内容语义层 */
+export const CONTENT_THEMES = ['follow', 'paper', 'sepia', 'parchment', 'night'] as const
+export type ContentTheme = (typeof CONTENT_THEMES)[number]
+
+export const CONTENT_THEME_LABELS: Record<ContentTheme, string> = {
+  follow: '跟随界面',
+  paper: '纸张',
+  sepia: '护眼米黄',
+  parchment: '羊皮纸',
+  night: '夜间',
+}
+
+export function isContentTheme(value: unknown): value is ContentTheme {
+  if (typeof value !== 'string') return false
+  return (CONTENT_THEMES as readonly string[]).includes(value)
+}
+
+/** 非法持久化值回落 'follow'(映射 UI 主题 token,正文外观与 add-001 一致) */
+function resolveContentTheme(value: unknown): ContentTheme {
+  return isContentTheme(value) ? value : 'follow'
+}
+
 export const STORAGE_KEY = 'mde:settings:v6'
 /** v5 → v6:读不到 v6 时尝试 v5(theme 保留合法值,其余字段透传) */
 export const LEGACY_STORAGE_KEY = 'mde:settings:v5'
@@ -45,6 +67,8 @@ export const DEFAULT_MONO_FONT = 'ui-monospace'
 
 interface PersistedSettings {
   theme: Theme
+  /** 正文染色主题(add-003):预览区正文的独立配色,follow = 跟随 UI 主题 */
+  contentTheme: ContentTheme
   splitRatio: number
   viewMode: ViewMode
   sansFont: string
@@ -159,6 +183,7 @@ function load(): PersistedSettings {
   if (typeof localStorage === 'undefined') {
     return {
       theme: 'system',
+      contentTheme: 'follow',
       splitRatio: 0.5,
       viewMode: 'split',
       sansFont: DEFAULT_SANS_FONT,
@@ -175,6 +200,7 @@ function load(): PersistedSettings {
     if (!raw) {
       return {
         theme: 'system',
+        contentTheme: 'follow',
         splitRatio: 0.5,
         viewMode: 'split',
         sansFont: DEFAULT_SANS_FONT,
@@ -188,6 +214,7 @@ function load(): PersistedSettings {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     return {
       theme: resolveTheme(parsed.theme),
+      contentTheme: resolveContentTheme(parsed.contentTheme),
       splitRatio:
         typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
       viewMode: (parsed.viewMode as ViewMode) ?? 'split',
@@ -211,6 +238,7 @@ function load(): PersistedSettings {
   } catch {
     return {
       theme: 'system',
+      contentTheme: 'follow',
       splitRatio: 0.5,
       viewMode: 'split',
       sansFont: DEFAULT_SANS_FONT,
@@ -244,13 +272,31 @@ function applyTheme(theme: Theme) {
   }
 }
 
+/**
+ * 把正文染色主题写到 <html data-content-theme> 上(add-003)。
+ * follow(跟随界面)时移除属性,--content-* 默认映射到当前 UI 主题 token;
+ * 其余方案由 CSS 的 :root[data-content-theme='...'] 覆盖内容语义变量。
+ */
+function applyContentTheme(contentTheme: ContentTheme) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (!root) return
+  if (contentTheme === 'follow') {
+    root.removeAttribute('data-content-theme')
+  } else {
+    root.setAttribute('data-content-theme', contentTheme)
+  }
+}
+
 function applyToDocument(
   sansFont: string,
   monoFont: string,
   fontSize: number,
   theme: Theme,
+  contentTheme: ContentTheme,
 ) {
   applyTheme(theme)
+  applyContentTheme(contentTheme)
   if (typeof document === 'undefined') return
   const root = document.documentElement
   if (!root) return
@@ -276,6 +322,7 @@ let themeAnimTimer: ReturnType<typeof setTimeout> | null = null
 export const useSettingsStore = defineStore('settings', () => {
   const initial = load()
   const theme = ref<Theme>(initial.theme)
+  const contentTheme = ref<ContentTheme>(initial.contentTheme)
   const splitRatio = ref<number>(initial.splitRatio)
   const viewMode = ref<ViewMode>(initial.viewMode)
   const sansFont = ref<string>(initial.sansFont)
@@ -286,13 +333,14 @@ export const useSettingsStore = defineStore('settings', () => {
   const autoSaveEnabled = ref<boolean>(initial.autoSaveEnabled)
 
   watch(
-    [theme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed, syncScroll, autoSaveEnabled],
-    ([t, r, v, sf, mf, fs, sc, sy, as]) => {
+    [theme, contentTheme, splitRatio, viewMode, sansFont, monoFont, fontSize, sidebarCollapsed, syncScroll, autoSaveEnabled],
+    ([t, ct, r, v, sf, mf, fs, sc, sy, as]) => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
             theme: t,
+            contentTheme: ct,
             splitRatio: r,
             viewMode: v,
             sansFont: sf,
@@ -304,7 +352,7 @@ export const useSettingsStore = defineStore('settings', () => {
           }),
         )
       }
-      applyToDocument(sf, mf, fs, t)
+      applyToDocument(sf, mf, fs, t, ct)
     },
     { deep: true, immediate: true },
   )
@@ -333,6 +381,11 @@ export const useSettingsStore = defineStore('settings', () => {
   function setTheme(value: Theme) {
     animateThemeChange()
     theme.value = value
+  }
+
+  /** 正文染色主题变更(add-003):无动画过渡需求,直接写偏好 */
+  function setContentTheme(value: ContentTheme) {
+    contentTheme.value = value
   }
 
   function setViewMode(mode: ViewMode) {
@@ -388,6 +441,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function resetAll() {
     theme.value = 'system'
+    contentTheme.value = 'follow'
     splitRatio.value = 0.5
     viewMode.value = 'split'
     sansFont.value = DEFAULT_SANS_FONT
@@ -400,6 +454,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     theme,
+    contentTheme,
     splitRatio,
     viewMode,
     sansFont,
@@ -410,6 +465,7 @@ export const useSettingsStore = defineStore('settings', () => {
     autoSaveEnabled,
     toggleTheme,
     setTheme,
+    setContentTheme,
     setViewMode,
     cycleViewMode,
     setSansFont,

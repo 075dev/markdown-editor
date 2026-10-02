@@ -80,6 +80,16 @@ events: 0
 - 持久化:`mde:settings:v6`(v5 数据自动迁移,theme 非法值回落 `light`);
 - 可访问性:全部主题 `--text-2/3` 与横幅反色实测 WCAG AA ≥ 4.5:1(评审者按相对亮度公式逐组核算)。
 
+### 1.5 正文染色主题(add-003 增量,2026-09-28)
+
+预览区正文的**独立配色方案层**,与 UI 主题(界面壳)正交:界面壳配色随「主题」,预览区内容底色与文字配色随「正文染色」,二者可独立组合(约定细则见 `.planning/context/event-flow.md`「正文染色主题约定」)。
+
+- **方案集(5)**:`follow` 跟随界面(默认)/ `paper` 纸张 / `sepia` 护眼米黄 / `parchment` 羊皮纸 / `night` 夜间内容;
+- **实现**:偏好 `contentTheme` 存 settings(`mde:settings:v6`),经 `<html data-content-theme>` 承载;`follow` 不写属性,`--content-*` 语义变量(11 个:bg/text/heading/text-2/link/quote-bg/quote-border/code-bg/code-border/table-border/hr)默认映射 UI token——外观与 add-001 逐像素一致;独立方案覆盖语义变量,仅作用于预览区正文;
+- **入口**:设置页「外观 → 正文染色」下拉;
+- **正交性**:任意 UI 主题 × 任意正文染色组合合法(`night` 可配浅色 UI 单独调暗内容区);
+- **无 IPC 面**:纯前端 CSS 变量 + settings 持久化(契约 v0.2.1 仅文档化行为约定)。
+
 ---
 
 ## 二、本章节的开发流程留档
@@ -157,3 +167,4 @@ timeline
 | 日期 | 操作 | 说明 |
 |------|------|------|
 | 2026-09-15 | add | `/ql-add` 增量产出:六主题 + 全面视觉升级(add-001,评审 approved,M1 已修复) |
+| 2026-09-28 | add | 正文染色主题(add-003):contentTheme 偏好 + --content-* 语义层 + 五方案;契约 0.2.1;全量 327/327 |

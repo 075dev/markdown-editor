@@ -223,3 +223,42 @@ sequenceDiagram
 | href 为 `javascript:` 等危险协议 | 双重拦截(sanitize 剥离 + 路由白名单忽略) |
 | Web 模式点击相对路径链接 | 状态栏提示仅桌面支持文档间跳转 |
 | open-external 系统调用失败 | 状态栏错误提示(OPEN_EXTERNAL_FAILED) |
+
+## 正文染色主题约定(add-003,纯前端,无 IPC 面)
+
+预览区正文的独立配色方案层,与 UI 主题(界面壳)解耦:UI 主题决定界面壳配色,
+正文染色主题决定预览区内容底色与文字配色,二者可独立选择。
+
+```mermaid
+flowchart LR
+    S[settings.contentTheme] --> A["html data-content-theme"]
+    A --> C["--content-* 语义变量层"]
+    C --> P["预览区 .markdown-body"]
+    F["follow(默认)"] -.映射现有 UI token.-> C
+```
+
+行为细则:
+
+1. **方案集**:`follow`(跟随界面主题,默认)/ `paper` 纸张 / `sepia` 护眼米黄 /
+   `parchment` 羊皮纸 / `night` 夜间内容;持久化于 settings(localStorage v6)。
+2. **变量层**:`follow` 不写 `data-content-theme` 属性,`--content-*` 默认映射到
+   现有 UI 主题 token(正文外观与 add-001 完全一致);其余方案由
+   `:root[data-content-theme='...']` 覆盖 11 个内容语义变量
+   (bg/text/heading/text-2/link/quote-bg/quote-border/code-bg/code-border/table-border/hr)。
+3. **作用域**:仅预览区正文(`.preview-pane__body` 及其内 `.markdown-body` 元素);
+   编辑器、侧栏、标题栏等界面壳不受影响。
+4. **链接染色**:`.markdown-body a` 显式使用 `--content-link`(此前经全局 a 规则
+   染 UI accent 色,follow 模式渲染结果恒等;现显式化为主题化链接色,独立方案下
+   可随内容配色)。
+5. **与 UI 主题正交**:任意 UI 主题 × 任意正文染色主题组合均合法;
+   `night` 夜间内容可配浅色 UI 主题单独调暗内容区。
+
+边缘场景:
+
+| 场景 | 期望行为 |
+|------|----------|
+| contentTheme = follow | 外观与 add-001 现状逐像素一致(默认映射) |
+| UI 主题切换时正文染色 = 独立方案 | 正文配色不变(仅界面壳变) |
+| contentTheme = night + 浅色 UI 主题 | 界面壳浅色、预览区深色,均为合法组合 |
+| 持久化值非法(手改 localStorage) | 回落 follow(映射 UI 主题,不白屏) |
+| 设置页重置全部 | contentTheme 回 follow |

@@ -131,3 +131,16 @@ fill-report 第三节对照表 **9/9 属实**。自动保存核心参数与流�
 | B5 | 证伪实验(ql-reviewer 独立) | PASS | `git stash` 回退修复 → 全量重跑唯一变红 = B1 的 dirty 保留用例;恢复后全绿 |
 
 - 结论:`guardDirtyTab` 守卫(openFileFromPath/openFile 双入口)与既有冲突安全网(handleExternalChange → conflict、resolveConflictKeepMine/UseDisk、AutoSaveBanner 逐标签双按钮)语义同构,评审 approved(0 critical/3 non-critical)。详见 `.planning/bugfix/003-link-jump-overwrites-unsaved.md`。
+
+---
+
+## add-003 验证记录(2026-09-28,正文染色主题)
+
+| # | 验证项 | 结果 | 证据 |
+|---|--------|------|------|
+| A1 | 定向 `vitest run src/stores/settings.content-theme.test.ts` | PASS | 7/7(默认 follow/方案集校验/持久化往返/data-content-theme 挂载与移除/非法回落/resetAll;属性断言经 nextTick 处理 watch pre-flush) |
+| A2 | 全量 `pnpm test` | PASS | 327/327(35 文件,基线 320 净增 7) |
+| A3 | `pnpm typecheck` / `pnpm build` | PASS | vue-tsc 0 错误 / 9.49s |
+| A4 | follow 零行为变化(评审员逐项核对) | PASS | --content-* 11 项默认映射与 add-001 旧 token 逐项恒等(首轮 C1:--content-hr 误映射 --border-strong,已修为 --border) |
+| A5 | 对比度(评审员实测) | PASS(修后) | 主文字/标题全部 ≥8.8;text-2 首轮 sepia 4.27 / parchment 3.78 低于 AA,加深为 #6b6149 / #6e6147 后复审确认 |
+| A6 | 独立评审(ql-reviewer 三结论) | reviewed | 第 1 轮 criticals_found(C1 hr 映射 + N1 链接断言失实 + N2 对比度 + N3 留档缺失)→ 全部修复 → 第 2 轮复审(见 add 台账) |
