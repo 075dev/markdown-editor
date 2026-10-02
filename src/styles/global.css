@@ -392,15 +392,39 @@ a:hover {
 }
 
 /* ---------- CodeMirror Markdown 语法 class ----------
- * 由 src/editor/markdownLanguage.ts 的 HighlightStyle 输出,
- * 此前只有 class 无样式;统一走主题 token。 */
+ * 由 src/editor/markdownLanguage.ts 的 HighlightStyle 输出。
+ * 颜色走语法语义层 --syntax-*(add-004):标题按 1-6 级分色,
+ * 行内代码/粗体/斜体/删除线/链接/列表各有专属色,follow 映射内容配色。 */
 .cm-md-heading {
-  color: var(--text-1);
   font-weight: 600;
 }
 
+.cm-md-heading-1 {
+  color: var(--syntax-h1);
+}
+
+.cm-md-heading-2 {
+  color: var(--syntax-h2);
+}
+
+.cm-md-heading-3 {
+  color: var(--syntax-h3);
+}
+
+.cm-md-heading-4 {
+  color: var(--syntax-h4);
+}
+
+.cm-md-heading-5 {
+  color: var(--syntax-h5);
+}
+
+.cm-md-heading-6 {
+  color: var(--syntax-h6);
+}
+
 .cm-md-link {
-  color: var(--accent);
+  color: var(--syntax-link);
   text-decoration: underline;
 }
 
@@ -409,14 +433,27 @@ a:hover {
 }
 
 .cm-md-code {
-  color: var(--text-1);
+  color: var(--syntax-inline-code);
   font-family: var(--font-mono);
   background: var(--code-bg);
   border-radius: calc(var(--radius) - 3px);
 }
 
+.cm-md-bold {
+  color: var(--syntax-bold);
+}
+
+.cm-md-italic {
+  color: var(--syntax-italic);
+}
+
+.cm-md-strike {
+  color: var(--syntax-strikethrough);
+  text-decoration: line-through;
+}
+
 .cm-md-list {
-  color: var(--accent-text);
+  color: var(--syntax-list);
 }
 
 /* ============================================================
@@ -500,4 +537,75 @@ a:hover {
   --content-code-border: #2a2f3a;
   --content-table-border: #2f3541;
   --content-hr: #3a4150;
+}
+
+/* ============================================================
+ * 语法语义层(add-004)
+ * - markdown 语法元素的等级化配色:标题 1-6 级各自配色,行内代码/
+ *   粗体/斜体/删除线/链接/列表标记各有专属色;
+ * - 同一套 --syntax-* 同时驱动编辑器源码高亮(cm-md-* class)与
+ *   预览渲染元素(.markdown-body),两边观感一致;
+ * - follow(默认)不写 data-syntax-theme 属性,默认映射让语法观感
+ *   与 add-003 后现状逐像素一致;其余方案覆盖语义变量;
+ * - 代码块内部高亮(--hl-* 五色)不属本层,仍由 UI 主题驱动。
+ * ============================================================ */
+
+:root {
+  --syntax-h1: var(--content-heading);
+  --syntax-h2: var(--content-heading);
+  --syntax-h3: var(--content-heading);
+  --syntax-h4: var(--content-text);
+  --syntax-h5: var(--content-text);
+  --syntax-h6: var(--content-text);
+  --syntax-inline-code: var(--content-text);
+  --syntax-bold: currentColor;
+  --syntax-italic: currentColor;
+  --syntax-strikethrough: currentColor;
+  --syntax-link: var(--content-link);
+  --syntax-list: var(--accent-text);
+}
+
+/* ---------- rainbow 彩虹标题(色相分级;色值按浅色内容底调校) ---------- */
+:root[data-syntax-theme='rainbow'] {
+  --syntax-h1: #c0392b;
+  --syntax-h2: #a8571a;
+  --syntax-h3: #8f7d1a;
+  --syntax-h4: #2e7d5b;
+  --syntax-h5: #2a6fa8;
+  --syntax-h6: #7a4fa8;
+  --syntax-inline-code: #83347c;
+  --syntax-bold: #b34700;
+  --syntax-italic: #55557f;
+  --syntax-strikethrough: #767c86;
+  --syntax-list: #6b5b8f;
+}
+
+/* ---------- academic 暖调学术(深蓝分级 + 棕金/深红强调) ---------- */
+:root[data-syntax-theme='academic'] {
+  --syntax-h1: #1f3a5f;
+  --syntax-h2: #2b4d74;
+  --syntax-h3: #37608a;
+  --syntax-h4: #44739f;
+  --syntax-h5: #5286b4;
+  --syntax-h6: #4d84b0;
+  --syntax-inline-code: #6b4a12;
+  --syntax-bold: #7d2a2a;
+  --syntax-italic: #4a5568;
+  --syntax-strikethrough: #7a7264;
+  --syntax-list: #556b2f;
+}
+
+/* ---------- mono 冷调极简(灰阶明度分级) ---------- */
+:root[data-syntax-theme='mono'] {
+  --syntax-h1: #14161a;
+  --syntax-h2: #262a31;
+  --syntax-h3: #3a3f49;
+  --syntax-h4: #4e545f;
+  --syntax-h5: #626975;
+  --syntax-h6: #767d8a;
+  --syntax-inline-code: #3f4a63;
+  --syntax-bold: #14161a;
+  --syntax-italic: #4e545f;
+  --syntax-strikethrough: #767d88;
+  --syntax-list: #4e545f;
 }

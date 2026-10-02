@@ -229,15 +229,63 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 /* 正文链接显式化为主题化 --content-link(此前经全局 a 规则染 UI accent 色;
  * follow 模式渲染结果恒等;约定见 event-flow.md add-003) */
 .markdown-body a {
-  color: var(--content-link);
+  color: var(--syntax-link);
 }
 
+/* 标题按 1-6 级分色(add-004 语法语义层);follow 下 h1-h3/h4-h6 分映射内容配色 */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
   margin-top: 1.4em;
   margin-bottom: 0.6em;
-  color: var(--content-heading);
+}
+
+.markdown-body h1 {
+  color: var(--syntax-h1);
+}
+
+.markdown-body h2 {
+  color: var(--syntax-h2);
+}
+
+.markdown-body h3 {
+  color: var(--syntax-h3);
+}
+
+.markdown-body h4 {
+  color: var(--syntax-h4);
+}
+
+.markdown-body h5 {
+  color: var(--syntax-h5);
+}
+
+.markdown-body h6 {
+  color: var(--syntax-h6);
+}
+
+/* 行内代码/粗体/斜体/删除线走语法语义层(follow 下与现状一致)。
+ * 行内代码用 :not(pre) > code 限定——围栏代码块(pre>code)不属语法染色层,
+ * 其文字色继承内容配色,内部高亮仍由 --hl-* 驱动 */
+.markdown-body :not(pre) > code {
+  color: var(--syntax-inline-code);
+}
+
+.markdown-body strong {
+  color: var(--syntax-bold);
+}
+
+.markdown-body em {
+  color: var(--syntax-italic);
+}
+
+.markdown-body del,
+.markdown-body s {
+  color: var(--syntax-strikethrough);
+}
+
+.markdown-body li::marker {
+  color: var(--syntax-list);
 }
 
 .markdown-body p {

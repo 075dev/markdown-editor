@@ -23,6 +23,7 @@ export function markdownExtensions(): Extension[] {
     { tag: t.heading6, class: 'cm-md-heading cm-md-heading-6' },
     { tag: t.strong, class: 'cm-md-bold', fontWeight: 'bold' },
     { tag: t.emphasis, class: 'cm-md-italic', fontStyle: 'italic' },
+    { tag: t.strikethrough, class: 'cm-md-strike' },
     { tag: t.link, class: 'cm-md-link' },
     { tag: t.url, class: 'cm-md-url' },
     { tag: t.monospace, class: 'cm-md-code' },

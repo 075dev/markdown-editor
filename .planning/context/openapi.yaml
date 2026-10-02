@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: markdown-editor
-  version: 0.2.1
+  version: 0.2.2
   description: |
     本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
 
@@ -28,6 +28,7 @@ info:
     - Q: heading 锚点 id 从哪来? → A: 渲染管线新增 rehype 插件为标题注入 slug id(GitHub 风格,CJK 保留,重名 -N 去重),自写零依赖(2026-09-21)
     - Q: 工作区文件树读取(add/bugfix-004)受限? → A: capabilities 的 fs:scope 静态白名单外的工作区经新命令 allow_workspace_dir 运行时递归放行(fs_scope().allow_directory),chooseWorkspace 在读目录前调用(2026-09-28)
     - Q: 正文染色主题(add-003)如何实现? → A: 纯前端——新增 contentTheme 偏好(follow/paper/sepia/parchment/night,默认 follow),经 <html data-content-theme> 承载内容语义变量层(--content-*),仅作用于预览区正文;follow = 映射现有 UI 主题 token;无新端点/事件(2026-09-28)
+    - Q: 语法染色主题(add-004)如何实现? → A: 纯前端——新增 syntaxTheme 偏好(follow/rainbow/academic/mono,默认 follow),经 <html data-syntax-theme> 承载语法语义变量层(--syntax-* 12 变量:h1-h6/行内代码/粗体/斜体/删除线/链接/列表),同一套变量同时驱动编辑器源码高亮(cm-md-* class)与预览渲染元素;围栏代码块不属本层;follow = 映射 content/UI token(与现状恒等);无新端点/事件(2026-09-28)
 
 servers:
   - url: tauri://ipc

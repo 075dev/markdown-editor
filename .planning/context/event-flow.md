@@ -262,3 +262,52 @@ flowchart LR
 | contentTheme = night + 浅色 UI 主题 | 界面壳浅色、预览区深色,均为合法组合 |
 | 持久化值非法(手改 localStorage) | 回落 follow(映射 UI 主题,不白屏) |
 | 设置页重置全部 | contentTheme 回 follow |
+
+## 语法染色主题约定(add-004,纯前端,无 IPC 面)
+
+markdown 语法元素的等级化配色:标题按 1-6 级各自配色,行内代码/粗体/斜体/删除线/
+链接/列表标记各有专属色。同一套 `--syntax-*` 语义变量同时驱动**编辑器源码高亮**
+(`cm-md-*` class)与**预览渲染元素**(`.markdown-body`),两边观感一致;与界面主题、
+正文染色主题三者正交。
+
+```mermaid
+flowchart LR
+    S[settings.syntaxTheme] --> A["html data-syntax-theme"]
+    A --> V["--syntax-* 语义变量层(12)"]
+    V --> E["编辑器 cm-md-* class"]
+    V --> P["预览 .markdown-body"]
+    F["follow(默认)"] -.映射 content/UI token.-> V
+```
+
+行为细则:
+
+1. **方案集**:`follow`(跟随界面,默认)/ `rainbow` 彩虹标题 / `academic` 暖调学术 /
+   `mono` 冷调极简;持久化于 settings(`mde:settings:v6`)。
+2. **变量集(12)**:h1-h6 各一级、inline-code、bold、italic、strikethrough、link、list。
+3. **follow 默认映射**:h1-h3 → `--content-heading`;h4-h6 → `--content-text`(与现状
+   逐像素恒等);inline-code → `--content-text`;bold/italic/strikethrough →
+   `currentColor`(继承,与现状一致);link → `--content-link`;list → `--accent-text`。
+4. **作用域**:编辑器源码高亮(经 markdownLanguage.ts 的 HighlightStyle class)+
+   预览渲染元素;**围栏代码块(pre>code)不属本层**——行内代码染色用
+   `:not(pre) > code` 限定,代码块文字继承内容配色;代码块内部高亮(`--hl-*`
+   五色)仍由 UI 主题驱动。
+5. **标记符号随色**:标题 `#`、粗体 `**`、行内代码反引号等标记符号包含在对应
+   高亮 span 内,自动随内容同色,无单独变量。
+6. **编辑器列表色约定**:`.cm-md-list` 由 `--accent-text` 改为 `var(--syntax-list)`,
+   follow 下值相同(accent-text),独立方案下随方案;预览 `li::marker` 为新增染色
+   (增强,follow 下 = accent-text)。
+7. **编辑器删除线装饰约定**:`~~xx~~` 的源码高亮新增 `line-through` 装饰
+   (`.cm-md-strike`)——GFM 语义对齐,属改善;follow 下文字色仍继承(currentColor)。
+
+边缘场景:
+
+| 场景 | 期望行为 |
+|------|----------|
+| syntaxTheme = follow | 编辑器与预览的语法观感与 add-003 后现状一致(h1-h3/h4-h6 分映射) |
+| 编辑器与预览同文档同屏 | 标题/行内代码/粗体两侧颜色一致(同变量驱动) |
+| 正文染色(sepia) + 语法染色(follow) | 语法色继承内容配色(h1-h6 = sepia 标题色) |
+| 正文染色(sepia) + 语法染色(rainbow) | 语法色按 rainbow 方案,内容底色仍 sepia(正交) |
+| 持久化值非法 | 回落 follow |
+| 删除线 ~~xx~~ | 独立方案下有专属色;follow 下继承(currentColor,与现状一致) |
+| 围栏代码块(```yaml 等) | 不受语法染色影响(文字继承内容配色,内部高亮由 --hl-* 驱动) |
+| 深色内容底(night)+ 固定方案(rainbow 等) | 方案色值按浅色内容底调校,深底组合对比度可能下降(已知组合限制,正交组合由用户自定) |

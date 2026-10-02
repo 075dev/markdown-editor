@@ -90,6 +90,16 @@ events: 0
 - **正交性**:任意 UI 主题 × 任意正文染色组合合法(`night` 可配浅色 UI 单独调暗内容区);
 - **无 IPC 面**:纯前端 CSS 变量 + settings 持久化(契约 v0.2.1 仅文档化行为约定)。
 
+### 1.6 语法染色主题(add-004 增量,2026-09-28)
+
+markdown 语法元素的**等级化配色**:标题 1-6 级各自配色,行内代码/粗体/斜体/删除线/链接/列表标记各有专属色;同一套 `--syntax-*` 语义变量(12 个)同时驱动**编辑器源码高亮**(`cm-md-*` class)与**预览渲染元素**,两边观感一致(约定细则见 `.planning/context/event-flow.md`「语法染色主题约定」)。
+
+- **方案集(4)**:`follow` 跟随(默认,与 add-003 后现状逐像素恒等)/ `rainbow` 彩虹标题 / `academic` 暖调学术 / `mono` 冷调极简;
+- **实现**:偏好 `syntaxTheme` 存 settings,经 `<html data-syntax-theme>` 承载;编辑器侧由 `markdownLanguage.ts` 的 HighlightStyle class 消费(新增删除线 `~~xx~~` 的 line-through 装饰,GFM 语义对齐);预览侧 `.markdown-body` h1-h6/`:not(pre)>code`/strong/em/del/a/li::marker 消费;
+- **作用域边界**:围栏代码块(pre>code)不属本层——文字继承内容配色,内部高亮仍由 `--hl-*` 驱动;
+- **正交性**:界面主题 × 正文染色 × 语法染色三者任意组合合法;
+- **无 IPC 面**:契约 v0.2.2 仅文档化行为约定。
+
 ---
 
 ## 二、本章节的开发流程留档
@@ -168,3 +178,4 @@ timeline
 |------|------|------|
 | 2026-09-15 | add | `/ql-add` 增量产出:六主题 + 全面视觉升级(add-001,评审 approved,M1 已修复) |
 | 2026-09-28 | add | 正文染色主题(add-003):contentTheme 偏好 + --content-* 语义层 + 五方案;契约 0.2.1;全量 327/327 |
+| 2026-09-28 | add | 语法染色主题(add-004):syntaxTheme 偏好 + --syntax-* 语义层(12 变量,编辑器+预览同驱动)+ 三方案;契约 0.2.2;全量 335/335 |

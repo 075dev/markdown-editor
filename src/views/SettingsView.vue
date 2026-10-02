@@ -10,8 +10,11 @@ import {
   THEME_LABELS,
   CONTENT_THEMES,
   CONTENT_THEME_LABELS,
+  SYNTAX_THEMES,
+  SYNTAX_THEME_LABELS,
   type Theme,
   type ContentTheme,
+  type SyntaxTheme,
   type ViewMode,
 } from '@/stores/settings'
 import { listSystemFonts, clearFontCache, type FontList } from '@/services/fontService'
@@ -42,6 +45,10 @@ const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
 /** 正文染色方案选项(add-003;select 渲染顺序 = CONTENT_THEMES 声明序) */
 const contentThemeOptions: Array<{ value: ContentTheme; label: string }> =
   CONTENT_THEMES.map((value) => ({ value, label: CONTENT_THEME_LABELS[value] }))
+
+/** 语法染色方案选项(add-004) */
+const syntaxThemeOptions: Array<{ value: SyntaxTheme; label: string }> =
+  SYNTAX_THEMES.map((value) => ({ value, label: SYNTAX_THEME_LABELS[value] }))
 
 async function refreshFonts() {
   loading.value = true
@@ -203,6 +210,26 @@ onMounted(() => {
             >
               <option v-for="c in contentThemeOptions" :key="c.value" :value="c.value">
                 {{ c.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">语法染色</span>
+            <span class="settings__row-hint">标题按等级分色,行内代码/粗体等专属色(编辑器与预览一致)</span>
+          </div>
+          <div class="settings__row-control">
+            <select
+              :value="settings.syntaxTheme"
+              class="settings__select"
+              data-testid="syntax-theme-select"
+              aria-label="语法染色主题"
+              @change="settings.setSyntaxTheme(($event.target as HTMLSelectElement).value as SyntaxTheme)"
+            >
+              <option v-for="s in syntaxThemeOptions" :key="s.value" :value="s.value">
+                {{ s.label }}
               </option>
             </select>
           </div>

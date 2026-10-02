@@ -144,3 +144,16 @@ fill-report 第三节对照表 **9/9 属实**。自动保存核心参数与流�
 | A4 | follow 零行为变化(评审员逐项核对) | PASS | --content-* 11 项默认映射与 add-001 旧 token 逐项恒等(首轮 C1:--content-hr 误映射 --border-strong,已修为 --border) |
 | A5 | 对比度(评审员实测) | PASS(修后) | 主文字/标题全部 ≥8.8;text-2 首轮 sepia 4.27 / parchment 3.78 低于 AA,加深为 #6b6149 / #6e6147 后复审确认 |
 | A6 | 独立评审(ql-reviewer 三结论) | reviewed | 第 1 轮 criticals_found(C1 hr 映射 + N1 链接断言失实 + N2 对比度 + N3 留档缺失)→ 全部修复 → 第 2 轮复审(见 add 台账) |
+
+---
+
+## add-004 验证记录(2026-09-28,语法染色主题)
+
+| # | 验证项 | 结果 | 证据 |
+|---|--------|------|------|
+| S1 | 定向 `vitest run src/stores/settings.syntax-theme.test.ts` | PASS | 8/8(默认 follow/方案集校验/持久化/data-syntax-theme 挂载与移除/与 contentTheme 三层正交/非法回落/resetAll) |
+| S2 | 全量 `pnpm test` | PASS | 335/335(36 文件,基线 327 净增 8) |
+| S3 | `pnpm typecheck` / `pnpm build` | PASS | vue-tsc 0 错误 / 9.71s |
+| S4 | follow 逐像素恒等(评审员逐变量核对) | PASS | 12 变量默认映射与消费点旧值逐项恒等;首轮 C1(行内代码色泄漏进围栏代码块)已修:`:not(pre) > code` 限定 |
+| S5 | 独立评审(ql-reviewer 三结论) | reviewed | 第 1 轮 criticals_found(C1 作用域泄漏 + N1 变量计数 + N3 组合限制未入契约 + N6 删除线装饰超承诺)→ 全部修复/补契约 → 第 2 轮复审(见 add 台账) |
+| S6 | 评审留档 | PASS | `.planning/build/add-004-review.md`(评审员自写,feature-scoped 命名) |
