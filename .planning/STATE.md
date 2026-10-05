@@ -8,9 +8,9 @@ base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
 status: shipped
 review_verdict: approved
 review_rounds: 2
-reviewed_range: bc234d2..fe679f2
+reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: add-002 文档链接跳转 shipped via PR #1(推送并更新 PR 正文,2026-09-21)
+last_activity: 增量交付 shipped via PR #1 评论(文档树重扫 + bugfix-003/004 + add-003/004,推送 d0a7a53..5fa1686,保持 OPEN 待人工合并,2026-09-28)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
