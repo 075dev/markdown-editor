@@ -1,6 +1,17 @@
 # 验证报告(Verification)—— ql Phase 1 自动保存 + 冲突安全网
 
 - status: passed
+
+## 交付时效声明(2026-09-28,本次交付覆盖)
+
+- **status: passed @ `e5cd0f0`**——以下为本次交付增量(`d0a7a53..e5cd0f0`:文档树重扫 + bugfix-003/004 + add-003/004)的新鲜证据,各增量详细记录见本文件对应小节:
+  - bugfix-003(链接跳转未保存保护):B1-B5——全量 327/327、typecheck/build PASS、真机 CDP 终验、评审 approved
+  - add-003(正文染色主题):A1-A6——全量 327/327、follow 逐像素恒等核对、对比度实测、评审 2 轮 approved
+  - bugfix-004(工作区 fs scope):回归 3 例 + cargo check + 真机 scope 外全链路终验(报告见 `.planning/bugfix/004-workspace-fs-scope-forbidden.md`)
+  - add-004(语法染色主题):S1-S6——全量 335/335、follow 逐变量恒等核对、评审 2 轮 approved(报告 `.planning/build/add-004-review.md`)
+- **最终全量(交付时点)**:`pnpm test` **335/335**(36 文件)、`pnpm typecheck` 0 错误、`pnpm build` PASS——提交本声明的 commit 即交付 HEAD。
+- 下方第 1/2 轮正文为 Phase 1 基线时期(0a511b3)的历史记录,保留作审计留痕。
+
 - 分支:ql/phase-1-autosave,HEAD = 0a511b3,评审 diff 锚点 bc234d2(`git diff bc234d2..HEAD` = 30 文件,+2468/-134)
 - 日期:2026-09-14
 - 验证方式:全部命令亲历执行(fresh evidence),契约/流程逐条对照实现源码与测试文件,未采信前阶段报告数字

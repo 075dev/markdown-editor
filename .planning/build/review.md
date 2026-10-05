@@ -15,6 +15,21 @@ inputs:
 review_tier: THOROUGH (30 文件 > 20,涉及状态机/错误处理路径;全量三结论 + 对抗检查)
 ---
 
+## 交付评审汇总(2026-09-28,本次交付增量)
+
+总体 verdict:**approved**。本次交付范围(`d0a7a53..e5cd0f0`)内各增量的独立评审结论:
+
+| 增量 | 评审方式 | 轮次 | 结论 |
+|------|----------|------|------|
+| add-003 正文染色主题 | ql-reviewer 三结论 | 2 轮 | approved(首轮 criticals_found:--content-hr 映射违反 follow 恒等,已修) |
+| add-004 语法染色主题 | ql-reviewer 三结论 | 2 轮 | approved(首轮 criticals_found:行内代码色泄漏进围栏代码块,已修) |
+| bugfix-003 链接跳转覆盖未保存内容 | ql-reviewer | 1 轮 | approved(评审员证伪实验锁定回归) |
+| bugfix-004 工作区 fs scope | ql-fix 流程 | — | skipped(真机 CDP 端到端取证替代独立评审;报告留档) |
+
+各轮详情:下方第 1/2 轮正文(Phase 1 基线)、`.planning/add/003-content-theme.md`、`.planning/build/add-004-review.md`、`.planning/bugfix/00{3,4}-*.md`。
+
+---
+
 # 独立评审报告(第 1 轮)—— ql Phase 1 自动保存 + 冲突安全网
 
 ## 裁定:`criticals_found`
