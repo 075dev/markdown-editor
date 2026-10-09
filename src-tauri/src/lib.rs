@@ -447,19 +447,28 @@ fn read_file(path: String) -> Result<String, String> {
 
 /* ---------- 工作区 fs scope 运行时授权（bugfix-004） ---------- */
 
-/// 把用户对话框选定的工作区目录加入 plugin-fs 的运行时白名单（递归放行子目录）。
+/// 把用户选定的路径加入 plugin-fs 的运行时白名单。
 ///
-/// capabilities 的 fs:scope 只静态放行 $HOME/$DOCUMENT/$DESKTOP/$DOWNLOAD 四个
-/// 固定位置；对话框可选择的任意位置工作区（如 D:\）在 plugin-fs readDir 时被
-/// 整体 forbidden——自定义 command 的 read_file 不走 fs:scope（打开单文件一直
-/// 正常），唯独文件树（含子目录中的 MD 文件）索引失败，表现为「打开目录后
-/// 无法索引子目录中的 MD 文件」。
+/// 目录(bugfix-004):递归放行子目录。capabilities 的 fs:scope 只静态放行
+/// $HOME/$DOCUMENT/$DESKTOP/$DOWNLOAD 四个固定位置;对话框可选择的任意位置
+/// 工作区(如 D:\)在 plugin-fs readDir 时被整体 forbidden——自定义 command
+/// 的 read_file 不走 fs:scope(打开单文件一直正常),唯独文件树(含子目录
+/// 中的 MD 文件)索引失败,表现为「打开目录后无法索引子目录中的 MD 文件」。
+///
+/// 单文件(bugfix-005):文件关联/暖启动/链接跳转经 openFileFromPath 打开的
+/// 文件,未经对话框授权(plugin-dialog 选定后才自动 allow_file)也未经工作区
+/// 放行,读盘正常但保存链路 plugin-fs writeTextFile 被 forbidden——表现为
+/// 「文件能打开但无法保存」。精确放行该文件,不扩大到父目录。
 #[tauri::command]
 fn allow_workspace_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
     use tauri_plugin_fs::FsExt;
-    app.fs_scope()
-        .allow_directory(std::path::Path::new(&path), true)
-        .map_err(|e| format!("INTERNAL_ERROR: allow fs scope failed: {e}"))
+    let target = std::path::Path::new(&path);
+    let result = if target.is_file() {
+        app.fs_scope().allow_file(target)
+    } else {
+        app.fs_scope().allow_directory(target, true)
+    };
+    result.map_err(|e| format!("INTERNAL_ERROR: allow fs scope failed: {e}"))
 }
 
 /* ---------- 外部链接打开（add-002，契约 POST /ipc/open-external） ---------- */

@@ -512,6 +512,15 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     // bugfix-003:见 guardDirtyTab——链接跳转/文件树/暖启动打开已打开的
     // dirty 文件时,进冲突安全网而非静默覆盖
     if (guardDirtyTab(path)) return true
+    // bugfix-005:文件关联/暖启动/链接跳转打开的文件未经对话框授权,
+    // 读盘走自定义 command 不受 fs:scope 限制,但保存链路走 plugin-fs
+    // writeTextFile 会 forbidden。读盘前先运行时授权;失败不阻断打开
+    // (只影响保存,由 saveNotice 链路呈现),与 unwatch 同为尽力而为。
+    try {
+      await allowWorkspaceDir(path)
+    } catch {
+      /* 授权失败不阻断打开 */
+    }
     const content = await readTextFileRaw(path)
     if (content === null) return false
     upsertTab(path, content)

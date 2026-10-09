@@ -231,9 +231,13 @@ export async function listDirectory(path: string): Promise<DirEntry[]> {
 }
 
 /**
- * 把工作区目录加入 plugin-fs 运行时白名单(bugfix-004,递归放行子目录)。
- * capabilities 的 fs:scope 只静态放行 $HOME 等固定位置,对话框选择的任意
- * 位置工作区(如 D:\)不授权则 readDir 被 forbidden——文件树整体索引失败。
+ * 把路径加入 plugin-fs 运行时白名单:
+ *   - 目录(bugfix-004):递归放行子目录。capabilities 的 fs:scope 只静态放行
+ *     $HOME 等固定位置,对话框选择的任意位置工作区(如 D:\)不授权则 readDir
+ *     被 forbidden——文件树整体索引失败。
+ *   - 单文件(bugfix-005):文件关联/暖启动/链接跳转打开的文件未经对话框授权
+ *     (plugin-dialog 选定后才自动 allow_file),保存链路 writeTextFile 会被
+ *     forbidden——「文件能打开但无法保存」。
  * Web 模式无此机制,直接返回。
  */
 export async function allowWorkspaceDir(path: string): Promise<void> {

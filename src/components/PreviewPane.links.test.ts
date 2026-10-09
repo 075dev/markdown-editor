@@ -20,6 +20,7 @@ const openDiagramWindowMock = vi.fn(async (_opts: unknown): Promise<boolean> => 
 const canOpenInWindowMock = vi.fn(() => true)
 const openExternalMock = vi.fn(async (_target: string): Promise<void> => {})
 const readTextFileMock = vi.fn(async (_path: string): Promise<string> => '# mock')
+const allowWorkspaceDirMock = vi.fn(async (_path: string): Promise<void> => {})
 const watchFileExternalMock = vi.fn(async (_path: string): Promise<null> => null)
 const unwatchFileExternalMock = vi.fn(async (): Promise<null> => null)
 
@@ -34,12 +35,15 @@ vi.mock('@/services/externalLinks', () => ({
   openExternal: (target: string) => openExternalMock(target),
 }))
 // 部分mock:readTextFile(文档跳转读盘)与 watch 系(Tauri 模式下 store 会在
-// activeTabPath 变化时挂监听)替换为可控 mock,其余保留原实现
+// activeTabPath 变化时挂监听)替换为可控 mock,其余保留原实现。
+// allowWorkspaceDir(bugfix-005)同样替换:真实现走 @tauri-apps/api/core
+// 动态导入,首次模块加载超出 flushPromises 的冲刷范围。
 vi.mock('@/services/fileService', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,
     readTextFile: (path: string) => readTextFileMock(path),
+    allowWorkspaceDir: (path: string) => allowWorkspaceDirMock(path),
     watchFileExternal: (path: string) => watchFileExternalMock(path),
     unwatchFileExternal: () => unwatchFileExternalMock(),
   }
