@@ -11,7 +11,7 @@ review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: bugfix-005 增量交付 via PR #1 评论(71d6ea7..b72ec40 已推送,评论 6073952596;PR 保持 OPEN 待人工合并,2026-10-09)
+last_activity: PR #1 已合并至 main(merge ad7b38f)+ v0.2.0 发布(bugfix-005 关键修复,tag 30c1cea,Release 含 msi/setup/exe 三产物,2026-10-09)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
