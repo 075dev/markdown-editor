@@ -1,0 +1,174 @@
+import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
+import { useWorkspaceStore, FILE_EXTERNAL_CHANGE_EVENT } from '@/stores/workspace'
+import { saveMarkdownFile, readTextFile } from '@/services/fileService'
+
+/**
+ * 自动保存状态条(填充阶段 T2):
+ *   - Conflict 横幅按 conflictKind 区分文案(modified / removed)
+ *   - 双按钮触发对应决策 action
+ *   - 无冲突时渲染 saveNotice(保存失败/恢复),error 可手动关闭
+ */
+
+vi.mock('@/services/fileService', async () => {
+  const actual = await vi.importActual<typeof import('@/services/fileService')>(
+    '@/services/fileService',
+  )
+  return {
+    ...actual,
+    saveMarkdownFile: vi.fn(async (_c: string, path?: string) => ({ path: path ?? 'm.md' })),
+    watchFileExternal: vi.fn(async () => null),
+    unwatchFileExternal: vi.fn(async () => {}),
+    // 默认返回磁盘内容:「用磁盘版本」决策(F4)需读盘成功才置 Clean
+    readTextFile: vi.fn(async () => 'disk content'),
+  }
+})
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  vi.mocked(saveMarkdownFile).mockClear()
+})
+
+function mountBanner() {
+  const ws = useWorkspaceStore()
+  const wrapper = mount(AutoSaveBanner)
+  return { ws, wrapper }
+}
+
+function fireExternal(path: string, kind: 'modified' | 'removed') {
+  window.dispatchEvent(
+    new CustomEvent(FILE_EXTERNAL_CHANGE_EVENT, { detail: { path, kind } }),
+  )
+}
+
+describe('AutoSaveBanner', () => {
+  it('无冲突无通知时不渲染任何条', () => {
+    const { wrapper } = mountBanner()
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="autosave-notice"]').exists()).toBe(false)
+  })
+
+  it('modified 冲突:横幅显示「已被外部修改」', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/b.md', 'saved')
+    ws.updateActiveContent('mine')
+    fireExternal('/a/b.md', 'modified')
+    await flushPromises()
+    const banner = wrapper.find('[data-testid="autosave-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('已被外部修改')
+  })
+
+  it('removed 冲突:横幅显示「已在外部被删除」与恢复提示', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/gone.md', 'content')
+    fireExternal('/a/gone.md', 'removed')
+    await flushPromises()
+    const banner = wrapper.find('[data-testid="autosave-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('已在外部被删除')
+    expect(banner.text()).toContain('重新写盘恢复')
+  })
+
+  it('「保留我的」触发 resolveConflictKeepMine(写盘)→ 横幅消失', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/b.md', 'disk')
+    ws.updateActiveContent('mine')
+    fireExternal('/a/b.md', 'modified')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(true)
+
+    await wrapper.find('[data-testid="banner-keep-mine"]').trigger('click')
+    await flushPromises()
+    expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    expect(ws.tabs[0].status).toBe('clean')
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(false)
+  })
+
+  it('「用磁盘版本」触发 resolveConflictUseDisk → 横幅消失', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/b.md', 'disk')
+    ws.updateActiveContent('mine')
+    fireExternal('/a/b.md', 'modified')
+    await flushPromises()
+
+    await wrapper.find('[data-testid="banner-use-disk"]').trigger('click')
+    await flushPromises()
+    expect(ws.tabs[0].status).toBe('clean')
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(false)
+  })
+
+  it('「用磁盘版本」读盘失败 → 保持冲突,横幅不消失(修复 F4 假 clean)', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.upsertTab('/a/b.md', 'disk')
+    ws.updateActiveContent('mine')
+    fireExternal('/a/b.md', 'modified')
+    await flushPromises()
+    vi.mocked(readTextFile).mockRejectedValue({ code: 'FILE_READ_FAILED', message: 'locked' })
+
+    await wrapper.find('[data-testid="banner-use-disk"]').trigger('click')
+    await flushPromises()
+    expect(ws.tabs[0].status).toBe('conflict')
+    expect(wrapper.find('[data-testid="autosave-banner"]').exists()).toBe(true)
+    expect(ws.saveNotice?.level).toBe('error')
+  })
+
+  it('saveNotice error:渲染通知条,手动关闭后消失', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.saveNotice = { level: 'error', message: '保存失败:磁盘只读' }
+    await flushPromises()
+    const notice = wrapper.find('[data-testid="autosave-notice"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain('保存失败:磁盘只读')
+
+    await wrapper.find('[data-testid="notice-dismiss"]').trigger('click')
+    await flushPromises()
+    expect(ws.saveNotice).toBeNull()
+    expect(wrapper.find('[data-testid="autosave-notice"]').exists()).toBe(false)
+  })
+
+
+  it('多标签冲突:横幅逐标签渲染,按钮只作用于各自标签(修复 F3 错位)', async () => {
+    const { ws, wrapper } = mountBanner()
+    // b.md 进入冲突(此时 b 为活动标签)
+    ws.upsertTab('/a/b.md', 'disk b')
+    ws.updateActiveContent('mine b')
+    fireExternal('/a/b.md', 'modified')
+    // 切到 c.md 并让其也进入冲突
+    ws.upsertTab('/a/c.md', 'disk c')
+    ws.updateActiveContent('mine c')
+    fireExternal('/a/c.md', 'modified')
+    await flushPromises()
+
+    expect(ws.activeTabPath).toBe('/a/c.md')
+    const banner = wrapper.find('[data-testid="autosave-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('b.md')
+    expect(banner.text()).toContain('c.md')
+
+    const keepButtons = wrapper.findAll('[data-testid="banner-keep-mine"]')
+    const useDiskButtons = wrapper.findAll('[data-testid="banner-use-disk"]')
+    expect(keepButtons.length).toBe(2)
+    expect(useDiskButtons.length).toBe(2)
+
+    // 点击第一个条目(b.md)的「保留我的」:只写盘 b.md,c.md 保持冲突
+    await keepButtons[0].trigger('click')
+    await flushPromises()
+    expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    expect(saveMarkdownFile).toHaveBeenCalledWith('mine b', '/a/b.md')
+    expect(ws.tabs.find((t) => t.path === '/a/b.md')!.status).toBe('clean')
+    expect(ws.tabs.find((t) => t.path === '/a/c.md')!.status).toBe('conflict')
+    // 活动标签仍是 c.md,c 的条目仍在横幅中
+    expect(ws.activeTabPath).toBe('/a/c.md')
+    expect(wrapper.findAll('[data-testid="banner-keep-mine"]').length).toBe(1)
+  })
+
+  it('saveNotice info:渲染恢复通知', async () => {
+    const { ws, wrapper } = mountBanner()
+    ws.saveNotice = { level: 'info', message: '自动保存已恢复' }
+    await flushPromises()
+    expect(wrapper.find('[data-testid="autosave-notice"]').text()).toContain('自动保存已恢复')
+  })
+})

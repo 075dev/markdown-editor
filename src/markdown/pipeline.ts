@@ -4,33 +4,41 @@ import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
-import { plantumlRehype } from './plantumlRehype'
+import { plantumlRehype, resolvePlantumlServerUrl } from './plantumlRehype'
 import { plantumlHighlight } from './plantumlHighlight'
 import { buildCodeHighlightPlugin, disposeHighlighter } from './codeHighlight'
+import { stripDiagramCode } from './stripDiagramCode'
+import { headingAnchors } from './headingAnchors'
 
 /**
  * Markdown → 安全的 HTML 渲染管线：
  *
  *   1. remark-parse + remark-gfm → mdast
  *   2. remark-rehype → hast（保留原始 HTML，allowDangerousHtml）
- *   3. codeHighlight       (shiki @shikijs/rehype)        ← 通用代码块
- *   4. plantumlHighlight   (自写)                          ← PlantUML 关键字着色
- *   5. plantumlRehype                                      ← PlantUML <pre> → <img>
- *   6. rehype-sanitize                                     ← XSS 过滤
- *   7. rehype-stringify
+ *   3. stripDiagramCode  (rehype)                    ← 把 mermaid/plantuml 提前扁平化（不再走代码高亮）
+ *   4. codeHighlight     (正则在 hast 加 span.hl-X)  ← 通用代码块高亮（同步、零依赖、零 wasm）
+ *   5. plantumlHighlight (自写)                     ← PlantUML 关键字着色
+ *   6. plantumlRehype                                ← PlantUML <pre> → <img>
+ *   7. headingAnchors    (自写)                      ← h1–h6 注入 GitHub 风格 slug id(#锚点定位)
+ *   8. rehype-sanitize                               ← XSS 过滤
+ *   9. rehype-stringify
  *
  * 设计要点：
- *   - Shiki 高亮器在首次调用 renderMarkdown 前异步初始化一次并复用；
- *     同一进程里多次渲染不会重复加载 wasm。
- *   - sanitize 仍然夹在最后，确保 hl-* / shiki span 不会带危险属性。
- *   - 主题通过 CSS 变量 `--shiki-light` / `--shiki-dark` 切换，应用主题
- *     改变时只需要 reload（无需重新渲染）。
+ *   - 同步高亮，wasm / onig 之类不在预览期加载，避免和 Tauri WebView onig 加载时机 conflict。
+ *   - sanitize 仍然夹在最后，确保 hl-* span 不会带危险属性。
+ *   - 主题通过 CSS class（`.hl-keyword` 等）+ :root[data-theme] 直接切换，
+ *     不需要热重渲染即可切换。
  */
 
 // 在默认 sanitize 之上追加白名单：允许 Mermaid / KaTeX / Shiki 节点。
 // 默认 schema 已经允许常见的格式化标签，但禁止脚本与危险协议。
 const sanitizeSchema: typeof defaultSchema = {
   ...defaultSchema,
+  // defaultSchema 会给 id/name 加 'user-content-' 前缀(clobber 防护,面向多租户平台)。
+  // 本地编辑器渲染的是用户自己的文档,且 add-002 契约要求预览内 `#锚点` 链接
+  // 直接按标题 slug 定位 —— 这里关闭前缀,让 headingAnchors 注入的 id 原样保留。
+  // 注:id 本就在 defaultSchema.attributes['*'] 全局白名单中,无需按标签追加。
+  clobberPrefix: '',
   attributes: {
     ...defaultSchema.attributes,
     code: [
@@ -70,22 +78,29 @@ let initialized: Promise<Processor<undefined, undefined, undefined, undefined, s
 
 /**
  * 构造（或返回缓存的）渲染处理器。
- * 第一次调用时初始化 Shiki highlighter，后续直接复用。
+ * 第一次调用时构造正则高亮器，后续直接复用（同进程同语言无副作用）。
  */
 export function getProcessor(): Promise<Processor<undefined, undefined, undefined, undefined, string>> {
   if (initialized) return initialized
   initialized = (async () => {
     const codeHighlight = await buildCodeHighlightPlugin()
+    const serverUrl = await resolvePlantumlServerUrl()
     const processor = unified()
       .use(remarkParse)
       .use(remarkGfm)
       .use(remarkRehype, { allowDangerousHtml: true })
-      // Shiki 高亮必须在 plantumlRehype 之前、remarkRehype 之后
+      // 把 mermaid / plantuml 代码块提前扁平化为纯文本 src，
+      // 避免后续的正则高亮把 hl-* 撒进去、被后续 plantumlRehype 误处理。
+      .use(stripDiagramCode)
+      // 通用代码块高亮（在 plantumlRehype 之前；不感知 mermaid/plantuml）
       .use(codeHighlight)
       // PlantUML 自写高亮：必须在 plantumlRehype 之前
       .use(plantumlHighlight)
       // PlantUML <pre> → <img>：必须在 sanitize 之前
-      .use(plantumlRehype, { format: 'svg' })
+      .use(plantumlRehype, { format: 'svg', serverUrl })
+      // 标题锚点 slug id（#锚点跳转目标）：必须在 sanitize 之前注入，
+      // 且 sanitizeSchema 已放行 h1–h6 的 id 属性
+      .use(headingAnchors)
       .use(rehypeSanitize, sanitizeSchema)
       .use(rehypeStringify)
     return processor as unknown as Processor<undefined, undefined, undefined, undefined, string>

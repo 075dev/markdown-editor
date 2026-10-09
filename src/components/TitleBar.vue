@@ -137,6 +137,16 @@ function openSettings() {
       </button>
       <button
         type="button"
+        @click="settings.toggleSyncScroll"
+        data-testid="toggle-sync-scroll"
+        :title="settings.syncScroll ? '关闭同步滚动' : '开启同步滚动（双栏下生效）'"
+        :aria-pressed="settings.syncScroll"
+        :disabled="settings.viewMode !== 'split'"
+      >
+        {{ settings.syncScroll ? '↕ 同步' : '↕' }}
+      </button>
+      <button
+        type="button"
         @click="settings.toggleTheme"
         data-testid="toggle-theme"
       >
@@ -169,7 +179,7 @@ function openSettings() {
 .titlebar__title {
   font-weight: 600;
   font-size: 13px;
-  color: var(--fg);
+  color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -180,14 +190,14 @@ function openSettings() {
   padding: 2px 8px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   cursor: pointer;
-  color: var(--fg-muted);
+  color: var(--text-2);
   flex-shrink: 0;
 }
 
 .titlebar__sidebar-toggle:hover {
-  color: var(--fg);
+  color: var(--text-1);
   border-color: var(--accent);
 }
 
@@ -207,7 +217,7 @@ function openSettings() {
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   background: var(--bg);
 }
 
@@ -217,15 +227,15 @@ function openSettings() {
   padding: 0 8px;
   border: none;
   background: transparent;
-  border-radius: 3px;
-  color: var(--fg-muted);
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--text-2);
   cursor: pointer;
   font: inherit;
 }
 
 .titlebar__view-btn:hover:not(:disabled) {
   background: var(--bg-elev);
-  color: var(--fg);
+  color: var(--text-1);
 }
 
 .titlebar__view-btn.is-active {

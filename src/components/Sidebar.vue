@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import FolderTreeNode from '@/components/FolderTreeNode.vue'
 
 const workspace = useWorkspaceStore()
 
@@ -23,16 +24,12 @@ function handleClose(path: string) {
     <section class="sidebar__section">
       <header class="sidebar__header">目录</header>
       <div class="sidebar__root">{{ rootLabel }}</div>
-      <ul v-if="workspace.tree.length" class="sidebar__list">
-        <li
-          v-for="entry in workspace.tree"
-          :key="entry.path"
-          class="sidebar__item"
-          :class="{ 'sidebar__item--dir': entry.isDir }"
-        >
-          <span class="sidebar__icon">{{ entry.isDir ? '📁' : '📄' }}</span>
-          <span class="sidebar__name">{{ entry.name }}</span>
-        </li>
+      <ul v-if="workspace.tree.length" class="sidebar__tree">
+        <FolderTreeNode
+          v-for="node in workspace.tree"
+          :key="node.path"
+          :node="node"
+        />
       </ul>
       <p v-else class="sidebar__empty">
         在桌面端打开目录后会显示文件树。
@@ -90,16 +87,16 @@ function handleClose(path: string) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-muted);
+  color: var(--text-2);
 }
 
 .sidebar__root {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   word-break: break-all;
 }
 
-.sidebar__list,
+.sidebar__tree,
 .sidebar__tabs {
   list-style: none;
   padding: 0;
@@ -109,19 +106,17 @@ function handleClose(path: string) {
   gap: 2px;
 }
 
-.sidebar__item,
 .sidebar__tab {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   font-size: 13px;
   cursor: pointer;
   user-select: none;
 }
 
-.sidebar__item:hover,
 .sidebar__tab:hover {
   background: var(--bg-elev);
 }
@@ -147,9 +142,9 @@ function handleClose(path: string) {
   border: none;
   background: transparent;
   font-size: 14px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .sidebar__tab-close:hover {
@@ -159,7 +154,7 @@ function handleClose(path: string) {
 
 .sidebar__empty {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   margin: 0;
 }
 </style>

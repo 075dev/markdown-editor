@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Tauri IPC 命令(generate_handler 注册表)",
+    "regex": "^ {12}([a-z_][a-z0-9_]+),?\\s*$",
+    "glob": "lib.rs"
+  }
+]

@@ -24,6 +24,9 @@ system-fonts = "0.1"
 notify = "6"
 once_cell = "1"
 windows-sys = { version = "0.61", features = ["Win32_UI_Shell"] }
+tauri-plugin-single-instance = "2.4.4"
+# 外部链接打开(add-002 /ipc/open-external):跨平台调用系统默认程序
+open = "5"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

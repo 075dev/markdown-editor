@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// 默认情况下 isTauri() 在 jsdom 下为 false，应当 fallback 到官方 URL。
+vi.mock('@/services/env', () => ({ isTauri: () => false }))
+
+import { resolvePlantumlServerUrl } from '@/markdown/plantumlRehype'
 import { renderMarkdown } from '@/markdown/pipeline'
 
 describe('renderMarkdown — PlantUML code blocks', () => {
@@ -62,8 +67,16 @@ describe('renderMarkdown — PlantUML code blocks', () => {
       '```',
     ].join('\n')
     const html = await renderMarkdown(md)
-    // Mermaid 现在还不会被转换，所以应该保持 <pre><code class="language-mermaid">
+    // Mermaid 不在 pipeline 里转（避免 SSR / OffscreenCanvas 风险），
+    // PreviewPane 的 services/mermaid.ts 在客户端扫 <pre.language-mermaid> 渲染。
     expect(html).not.toContain('plantuml')
     expect(html).toContain('language-mermaid')
+  })
+})
+
+describe('resolvePlantumlServerUrl', () => {
+  it('在非 Tauri 环境回退到官方 URL', async () => {
+    const url = await resolvePlantumlServerUrl()
+    expect(url).toBe('https://www.plantuml.com/plantuml')
   })
 })

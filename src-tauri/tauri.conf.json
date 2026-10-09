@@ -22,12 +22,24 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: https://www.plantuml.com https://plantuml.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://www.plantuml.com"
+      "csp": "default-src 'self'; img-src 'self' data: https://www.plantuml.com https://plantuml.com http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://www.plantuml.com http://127.0.0.1:* http://localhost:*"
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "resources/plantuml.jar"
+    ],
+    "externalBin": [],
+    "fileAssociations": [
+      {
+        "name": "Markdown Document",
+        "description": "Open with MarkDownEditor",
+        "ext": ["md", "markdown", "mdx", "txt"],
+        "role": "Editor"
+      }
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",

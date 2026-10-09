@@ -1,6 +1,13 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useSettingsStore } from '@/stores/settings'
+import {
+  useSettingsStore,
+  STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
+  THEMES,
+  THEME_LABELS,
+  isTheme,
+} from '@/stores/settings'
 
 beforeEach(() => {
   // 清空 localStorage 防止污染（jsdom 下 clear 可能不存在，逐项删除兜底）
@@ -150,7 +157,7 @@ describe('settings store', () => {
     s.monoFont = 'Cascadia Code'
     s.fontSize = 18
     await new Promise((r) => setTimeout(r, 0))
-    const raw = localStorage.getItem('mde:settings:v5')
+    const raw = localStorage.getItem(STORAGE_KEY)
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!)
     expect(parsed.theme).toBe('dark')
@@ -182,7 +189,7 @@ describe('settings store', () => {
   it('migrates legacy enum values when reading old storage', () => {
     // 模拟 v3/v4 写入的旧枚举
     localStorage.setItem(
-      'mde:settings:v5',
+      LEGACY_STORAGE_KEY,
       JSON.stringify({
         theme: 'dark',
         splitRatio: 0.5,
@@ -196,7 +203,84 @@ describe('settings store', () => {
     const s = useSettingsStore()
     expect(s.sansFont).toBe('Inter')
     expect(s.monoFont).toBe('JetBrains Mono')
-    // 升级后会以 v5 key 写回（迁移后值）
-    expect(localStorage.getItem('mde:settings:v5')).toContain('"Inter"')
+    // 迁移后会以新 key(v6)写回(迁移后值)
+    expect(localStorage.getItem(STORAGE_KEY)).toContain('"Inter"')
+  })
+})
+describe('add-001 六主题体系', () => {
+  it('六主题 setTheme 往返:store 值 + data-theme 属性同步', async () => {
+    const s = useSettingsStore()
+    for (const t of THEMES) {
+      s.setTheme(t)
+      await new Promise((r) => setTimeout(r, 10))
+      expect(s.theme).toBe(t)
+      expect(document.documentElement.getAttribute('data-theme')).toBe(t)
+    }
+    s.setTheme('system')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
+  })
+
+  it('切换主题时加 theme-anim 临时类,约 250ms 后移除', () => {
+    vi.useFakeTimers()
+    try {
+      const s = useSettingsStore()
+      s.setTheme('oled')
+      expect(document.documentElement.classList.contains('theme-anim')).toBe(true)
+      vi.advanceTimersByTime(260)
+      expect(document.documentElement.classList.contains('theme-anim')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('setTheme 持久化到 v6', async () => {
+    const s = useSettingsStore()
+    s.setTheme('rose')
+    await new Promise((r) => setTimeout(r, 0))
+    const raw = localStorage.getItem(STORAGE_KEY)
+    expect(raw).toBeTruthy()
+    expect(JSON.parse(raw!).theme).toBe('rose')
+  })
+
+  it('v5 旧数据迁移:theme 保留合法值,其余字段透传,并写回 v6', async () => {
+    localStorage.setItem(
+      LEGACY_STORAGE_KEY,
+      JSON.stringify({ theme: 'paper', splitRatio: 0.4, viewMode: 'edit' }),
+    )
+    const s = useSettingsStore()
+    expect(s.theme).toBe('paper')
+    expect(s.splitRatio).toBeCloseTo(0.4)
+    expect(s.viewMode).toBe('edit')
+    await new Promise((r) => setTimeout(r, 0))
+    const v6 = localStorage.getItem(STORAGE_KEY)
+    expect(v6).toBeTruthy()
+    expect(JSON.parse(v6!).theme).toBe('paper')
+  })
+
+  it('非法 theme 值回落 light(v5 与 v6 皆然)', () => {
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ theme: 'banana' }))
+    expect(useSettingsStore().theme).toBe('light')
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: 42 }))
+    setActivePinia(createPinia())
+    expect(useSettingsStore().theme).toBe('light')
+  })
+
+  it('v6 优先于 v5(迁移不回退)', () => {
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ theme: 'dark' }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: 'oled' }))
+    expect(useSettingsStore().theme).toBe('oled')
+  })
+
+  it('isTheme / THEME_LABELS 覆盖七值', () => {
+    expect(isTheme('oled')).toBe(true)
+    expect(isTheme('nope')).toBe(false)
+    expect(isTheme(42)).toBe(false)
+    const all = [...THEMES, 'system'] as const
+    for (const t of all) {
+      expect(THEME_LABELS[t]).toBeTruthy()
+      expect(isTheme(t)).toBe(true)
+    }
   })
 })

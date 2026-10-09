@@ -7,6 +7,7 @@
  */
 
 import { isTauri } from '@/services/env'
+import { normalizeError, withFallbackCode } from '@/services/errors'
 
 export interface OpenFileResult {
   path: string
@@ -50,23 +51,51 @@ async function tauriSaveFile(
 ): Promise<SaveFileResult | null> {
   const { save } = await import('@tauri-apps/plugin-dialog')
   const { writeTextFile } = await import('@tauri-apps/plugin-fs')
-  const target = suggestedPath ?? (await save({
-    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-  }))
+  // 用户取消(save 返回 null)= 契约正常路径;异常统一规范化为 QlError。
+  let target: string | null
+  if (suggestedPath) {
+    target = suggestedPath
+  } else {
+    try {
+      target = await save({
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+      })
+    } catch (err) {
+      // 对话框异常无法细分类别,保留原始 message(INTERNAL_ERROR)
+      throw normalizeError(err)
+    }
+  }
   if (!target) return null
-  await writeTextFile(target, content)
+  try {
+    await writeTextFile(target, content)
+  } catch (err) {
+    // 写盘通道:无法分类的兜底升级为 FILE_WRITE_FAILED,
+    // 自动保存的指数退避重试依赖此码判别(填充阶段 T2)
+    throw withFallbackCode(normalizeError(err), 'FILE_WRITE_FAILED')
+  }
   return { path: target }
 }
 
 async function tauriNewFile(opts: NewFileOptions = {}): Promise<SaveFileResult | null> {
   const { save } = await import('@tauri-apps/plugin-dialog')
   const { writeTextFile } = await import('@tauri-apps/plugin-fs')
-  const target = await save({
-    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-    defaultPath: opts.suggestedName ?? 'untitled.md',
-  })
+  let target: string | null
+  try {
+    target = await save({
+      filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+      defaultPath: opts.suggestedName ?? 'untitled.md',
+    })
+  } catch (err) {
+    // 对话框异常:保留原始 message
+    throw normalizeError(err)
+  }
   if (!target) return null
-  await writeTextFile(target, opts.initialContent ?? '')
+  try {
+    await writeTextFile(target, opts.initialContent ?? '')
+  } catch (err) {
+    // 写盘通道:兜底升级 FILE_WRITE_FAILED(与 tauriSaveFile 同策略)
+    throw withFallbackCode(normalizeError(err), 'FILE_WRITE_FAILED')
+  }
   return { path: target }
 }
 
@@ -114,38 +143,61 @@ async function webOpenFile(): Promise<OpenFileResult | null> {
   return null
 }
 
+/** File System Access API 里用户取消选择时抛的 DOMException(name=AbortError) */
+function isAbortError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { name?: unknown }).name === 'AbortError'
+  )
+}
+
 async function webSaveFile(content: string, suggestedPath?: string): Promise<SaveFileResult | null> {
   // @ts-expect-error showSaveFilePicker 尚未纳入 TS 标准库
   if (typeof window.showSaveFilePicker === 'function') {
-    // @ts-expect-file-suggestion
-    const handle: WebFileHandle | undefined = suggestedPath
-      ? // @ts-expect-error 同上
-        await window.showSaveFilePicker({ suggestedName: suggestedPath })
-      : // @ts-expect-error 同上
-        await window.showSaveFilePicker({
-          types: [
-            {
-              description: 'Markdown',
-              accept: { 'text/markdown': ['.md', '.markdown'] },
-            },
-          ],
-        })
-    if (!handle) return null
-    // @ts-expect-error 同上
-    const writable = await handle.createWritable()
-    await writable.write(content)
-    await writable.close()
+    let handle: WebFileHandle
+    try {
+      handle = suggestedPath
+        ? // @ts-expect-error 同上
+          await window.showSaveFilePicker({ suggestedName: suggestedPath })
+        : // @ts-expect-error 同上
+          await window.showSaveFilePicker({
+            types: [
+              {
+                description: 'Markdown',
+                accept: { 'text/markdown': ['.md', '.markdown'] },
+              },
+            ],
+          })
+    } catch (err) {
+      // 用户取消 = 契约的 null 返回(与 Tauri save() 返回 null 对齐)
+      if (isAbortError(err)) return null
+      throw normalizeError(err)
+    }
+    try {
+      // @ts-expect-error 同上
+      const writable = await handle.createWritable()
+      await writable.write(content)
+      await writable.close()
+    } catch (err) {
+      // Web 写盘通道:与 Tauri 通道同策略,兜底升级 FILE_WRITE_FAILED
+      throw withFallbackCode(normalizeError(err), 'FILE_WRITE_FAILED')
+    }
     return { path: handle.name }
   }
   // 回退：浏览器下载
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = suggestedPath ?? 'untitled.md'
-  a.click()
-  URL.revokeObjectURL(url)
-  return { path: a.download }
+  try {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = suggestedPath ?? 'untitled.md'
+    a.click()
+    URL.revokeObjectURL(url)
+    return { path: a.download }
+  } catch (err) {
+    throw withFallbackCode(normalizeError(err), 'FILE_WRITE_FAILED')
+  }
 }
 
 async function webNewFile(opts: NewFileOptions = {}): Promise<SaveFileResult | null> {
@@ -178,6 +230,26 @@ export async function listDirectory(path: string): Promise<DirEntry[]> {
   return isTauri() ? tauriListDir(path) : []
 }
 
+/**
+ * 把路径加入 plugin-fs 运行时白名单:
+ *   - 目录(bugfix-004):递归放行子目录。capabilities 的 fs:scope 只静态放行
+ *     $HOME 等固定位置,对话框选择的任意位置工作区(如 D:\)不授权则 readDir
+ *     被 forbidden——文件树整体索引失败。
+ *   - 单文件(bugfix-005):文件关联/暖启动/链接跳转打开的文件未经对话框授权
+ *     (plugin-dialog 选定后才自动 allow_file),保存链路 writeTextFile 会被
+ *     forbidden——「文件能打开但无法保存」。
+ * Web 模式无此机制,直接返回。
+ */
+export async function allowWorkspaceDir(path: string): Promise<void> {
+  if (!isTauri()) return
+  const { invoke } = await import('@tauri-apps/api/core')
+  try {
+    await invoke('allow_workspace_dir', { path })
+  } catch (err) {
+    throw normalizeError(err)
+  }
+}
+
 /* ---------- 文件监听（外部修改自动重载） ---------- */
 
 import type { UnlistenFn } from '@tauri-apps/api/event'
@@ -195,20 +267,22 @@ export async function watchFileExternal(path: string): Promise<UnlistenFn | null
     const { invoke } = await import('@tauri-apps/api/core')
     const { listen } = await import('@tauri-apps/api/event')
     await invoke('watch_file', { path })
-    const unlisten = await listen<{ path: string }>(
+    const unlisten = await listen<{ path: string; kind?: 'modified' | 'removed' }>(
       'file-external-change',
       (event) => {
         if (event.payload?.path === path) {
           window.dispatchEvent(
-            new CustomEvent('mde:file-external-change', { detail: { path } }),
+            new CustomEvent('mde:file-external-change', {
+              detail: { path, kind: event.payload.kind ?? 'modified' },
+            }),
           )
         }
       },
     )
     return unlisten
   } catch (err) {
-    console.warn('[fileService] watchFileExternal failed:', err)
-    return null
+    // 骨架期契约:watch 建立失败不再吞错,抛规范化 QlError(含 code)
+    throw normalizeError(err)
   }
 }
 
@@ -217,8 +291,9 @@ export async function unwatchFileExternal(): Promise<void> {
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     await invoke('unwatch_file')
-  } catch (err) {
-    console.warn('[fileService] unwatchFileExternal failed:', err)
+  } catch {
+    // unwatch 失败无用户可行动作(最多残留一个后端 watcher),
+    // 静默忽略即可;按宪法 C3 不落 console。
   }
 }
 
@@ -230,8 +305,8 @@ export async function readTextFile(path: string): Promise<string | null> {
       const content = await invoke<string>('read_file', { path })
       return content
     } catch (err) {
-      console.warn('[fileService] readTextFile (tauri) failed:', err)
-      return null
+      // 骨架期契约:读失败不再吞错,抛规范化 QlError(含 code)
+      throw normalizeError(err)
     }
   }
   // Web 模式：File System Access API 可以拿到已授权文件的 handle

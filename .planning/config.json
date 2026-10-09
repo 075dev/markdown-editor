@@ -1,0 +1,12 @@
+{
+  "parallelization": {
+    "enabled": true,
+    "max_concurrent": 5,
+    "isolation": "worktree",
+    "auto_merge": true,
+    "fail_fast": false,
+    "fallback_to_sequential": true,
+    "wave_timeout_minutes": 30,
+    "worker_timeout_minutes": 10
+  }
+}

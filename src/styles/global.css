@@ -1,60 +1,331 @@
+/* ============================================================
+ * 全局主题 token 体系(add-001)
+ * - 六套预设主题:light / dark / oled / paper / bluegray / rose
+ * - <html data-theme="..."> 承载;theme === 'system' 时移除属性,
+ *   由底部 prefers-color-scheme 媒体查询接管(仅匹配无属性时)
+ * - 每套主题完整定义 28 个 token,组件禁止硬编码颜色
+ * ============================================================ */
+
+/* ---------- 默认 = light(白底 + 蓝紫强调) ---------- */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+  /* 背景层次 */
   --bg: #ffffff;
-  --bg-elev: #f7f7f8;
-  --bg-sidebar: #f2f2f3;
-  --fg: #1a1a1a;
-  --fg-muted: #6b6b6b;
-  --border: #e5e5e7;
-  --accent: #2563eb;
+  --bg-elev: #f7f8fa;
+  --bg-sidebar: #f2f3f6;
+  --bg-input: #ffffff;
+  /* 文字三级 */
+  --text-1: #1a1d21;
+  --text-2: #5c6370;
+  --text-3: #6e7580;
+  /* 边框 */
+  --border: #e6e8eb;
+  --border-strong: #d3d7dd;
+  /* 强调(蓝紫) */
+  --accent: #4f46e5;
+  --accent-soft: #eef0fe;
+  --accent-text: #4338ca;
+  /* 状态 */
   --danger: #dc2626;
-  --code-bg: #f4f4f5;
+  --warning: #d97706;
+  --success: #15803d;
+  /* 代码块 */
+  --code-bg: #f6f7f9;
+  --code-border: #e2e5ea;
+  /* 语法高亮五色 */
+  --hl-keyword: #7c3aed;
+  --hl-string: #0a7d38;
+  --hl-comment: #98a1ad;
+  --hl-number: #0550ae;
+  --hl-operator: #5c6672;
+  /* 阴影 */
+  --shadow-1: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-2: 0 8px 24px rgba(15, 23, 42, 0.12);
+  /* 圆角 / 选区 / 滚动条 */
+  --radius: 6px;
+  --selection: rgba(79, 70, 229, 0.18);
+  --scrollbar: #c9cdd4;
+  --scrollbar-hover: #aeb4bd;
+
+  /* 字体(由 settings store 注入覆盖) */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  /* 字号由 settings store 通过 <html style="--font-size-base"> 注入 */
   --font-size-base: 14px;
+
+  /* 旧变量名兼容映射:既有组件仍引用 --fg / --fg-muted */
+  --fg: var(--text-1);
+  --fg-muted: var(--text-2);
 }
 
-/* 显式主题（来自 settings.theme = light / dark）覆盖默认 */
+/* ---------- light(显式选择,与默认一致) ---------- */
 :root[data-theme='light'] {
   color-scheme: light;
   --bg: #ffffff;
-  --bg-elev: #f7f7f8;
-  --bg-sidebar: #f2f2f3;
-  --fg: #1a1a1a;
-  --fg-muted: #6b6b6b;
-  --border: #e5e5e7;
-  --accent: #2563eb;
+  --bg-elev: #f7f8fa;
+  --bg-sidebar: #f2f3f6;
+  --bg-input: #ffffff;
+  --text-1: #1a1d21;
+  --text-2: #5c6370;
+  --text-3: #6e7580;
+  --border: #e6e8eb;
+  --border-strong: #d3d7dd;
+  --accent: #4f46e5;
+  --accent-soft: #eef0fe;
+  --accent-text: #4338ca;
   --danger: #dc2626;
-  --code-bg: #f4f4f5;
+  --warning: #d97706;
+  --success: #15803d;
+  --code-bg: #f6f7f9;
+  --code-border: #e2e5ea;
+  --hl-keyword: #7c3aed;
+  --hl-string: #0a7d38;
+  --hl-comment: #98a1ad;
+  --hl-number: #0550ae;
+  --hl-operator: #5c6672;
+  --shadow-1: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-2: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --radius: 6px;
+  --selection: rgba(79, 70, 229, 0.18);
+  --scrollbar: #c9cdd4;
+  --scrollbar-hover: #aeb4bd;
 }
 
+/* ---------- dark(深蓝灰基底,层次分明非纯灰) ---------- */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --bg: #0f1115;
-  --bg-elev: #161922;
-  --bg-sidebar: #11131a;
-  --fg: #e7e9ee;
-  --fg-muted: #9aa3b2;
-  --border: #232732;
-  --accent: #60a5fa;
+  --bg-elev: #171a21;
+  --bg-sidebar: #12141b;
+  --bg-input: #1a1e27;
+  --text-1: #e8eaf0;
+  --text-2: #9aa3b5;
+  --text-3: #747d8f;
+  --border: #262b37;
+  --border-strong: #39404f;
+  --accent: #6d8bff;
+  --accent-soft: rgba(109, 139, 255, 0.14);
+  --accent-text: #9db4ff;
   --danger: #f87171;
-  --code-bg: #1b1d24;
+  --warning: #fbbf24;
+  --success: #4ade80;
+  --code-bg: #151820;
+  --code-border: #262b37;
+  --hl-keyword: #c792ea;
+  --hl-string: #9ece6a;
+  --hl-comment: #5c6578;
+  --hl-number: #ff9e64;
+  --hl-operator: #7dcfff;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --radius: 6px;
+  --selection: rgba(109, 139, 255, 0.28);
+  --scrollbar: #333a48;
+  --scrollbar-hover: #454e60;
 }
 
-/* 跟随系统模式（settings.theme = system）回退到媒体查询 */
+/* ---------- oled(纯黑省电,低亮度低饱和) ---------- */
+:root[data-theme='oled'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-elev: #0a0a0c;
+  --bg-sidebar: #050507;
+  --bg-input: #101014;
+  --text-1: #d6d9de;
+  --text-2: #8f949d;
+  --text-3: #72767e;
+  --border: #1c1e22;
+  --border-strong: #2e3138;
+  --accent: #6e9fff;
+  --accent-soft: rgba(110, 159, 255, 0.12);
+  --accent-text: #a8c4ff;
+  --danger: #ff6b6b;
+  --warning: #e8b34b;
+  --success: #46c46e;
+  --code-bg: #07070a;
+  --code-border: #1c1e22;
+  --hl-keyword: #b48ead;
+  --hl-string: #a3be8c;
+  --hl-comment: #4e525a;
+  --hl-number: #d08770;
+  --hl-operator: #81a1c1;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.8);
+  --radius: 6px;
+  --selection: rgba(110, 159, 255, 0.25);
+  --scrollbar: #23262c;
+  --scrollbar-hover: #33373f;
+}
+
+/* ---------- paper(米黄纸感,暖色低对比) ---------- */
+:root[data-theme='paper'] {
+  color-scheme: light;
+  --bg: #faf4e8;
+  --bg-elev: #f3ecdc;
+  --bg-sidebar: #f5eedf;
+  --bg-input: #fdf9f0;
+  --text-1: #3d3629;
+  --text-2: #6f6654;
+  --text-3: #786e56;
+  --border: #e4dac4;
+  --border-strong: #d0c3a5;
+  --accent: #a3692d;
+  --accent-soft: #f0e4cd;
+  --accent-text: #7c5522;
+  --danger: #bb4a3a;
+  --warning: #b07d2b;
+  --success: #4c6a2e;
+  --code-bg: #f1e9d7;
+  --code-border: #e2d6bd;
+  --hl-keyword: #9d3b3b;
+  --hl-string: #55702a;
+  --hl-comment: #a89e88;
+  --hl-number: #2f6a8f;
+  --hl-operator: #6f6654;
+  --shadow-1: 0 1px 3px rgba(120, 100, 60, 0.12);
+  --shadow-2: 0 8px 24px rgba(120, 100, 60, 0.18);
+  --radius: 6px;
+  --selection: rgba(163, 105, 45, 0.2);
+  --scrollbar: #d8cbae;
+  --scrollbar-hover: #c4b48f;
+}
+
+/* ---------- bluegray(冷浅蓝灰) ---------- */
+:root[data-theme='bluegray'] {
+  color-scheme: light;
+  --bg: #f0f3f7;
+  --bg-elev: #e7ecf2;
+  --bg-sidebar: #eaeef4;
+  --bg-input: #f7f9fb;
+  --text-1: #24303f;
+  --text-2: #566374;
+  --text-3: #616e7f;
+  --border: #d4dce5;
+  --border-strong: #bcc7d4;
+  --accent: #2e6f9e;
+  --accent-soft: #dcebf5;
+  --accent-text: #24567a;
+  --danger: #b0403c;
+  --warning: #bd8a2e;
+  --success: #3d8b60;
+  --code-bg: #e6ebf1;
+  --code-border: #d2dae4;
+  --hl-keyword: #7c5cbf;
+  --hl-string: #2e7d5b;
+  --hl-comment: #93a1b1;
+  --hl-number: #b25b3a;
+  --hl-operator: #4d6478;
+  --shadow-1: 0 1px 3px rgba(37, 55, 76, 0.1);
+  --shadow-2: 0 8px 24px rgba(37, 55, 76, 0.14);
+  --radius: 6px;
+  --selection: rgba(46, 111, 158, 0.18);
+  --scrollbar: #c1cbd7;
+  --scrollbar-hover: #a5b2c1;
+}
+
+/* ---------- rose(暖深玫瑰) ---------- */
+:root[data-theme='rose'] {
+  color-scheme: dark;
+  --bg: #211a1e;
+  --bg-elev: #2a2126;
+  --bg-sidebar: #241c20;
+  --bg-input: #30262b;
+  --text-1: #f0e4e8;
+  --text-2: #b39aa3;
+  --text-3: #957e86;
+  --border: #3a2d33;
+  --border-strong: #524049;
+  --accent: #e8758f;
+  --accent-soft: rgba(232, 117, 143, 0.14);
+  --accent-text: #f4a0b2;
+  --danger: #ff7a70;
+  --warning: #e8a94e;
+  --success: #6fc489;
+  --code-bg: #291f24;
+  --code-border: #3a2d33;
+  --hl-keyword: #f28fb2;
+  --hl-string: #d9a562;
+  --hl-comment: #7d666e;
+  --hl-number: #e8956b;
+  --hl-operator: #cba6c3;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --radius: 6px;
+  --selection: rgba(232, 117, 143, 0.25);
+  --scrollbar: #453540;
+  --scrollbar-hover: #5c4852;
+}
+
+/* ---------- system 跟随:仅在无 data-theme 属性时生效 ----------
+ * 旧实现 :not([data-theme='light']) 在用户显式选 paper/rose 等主题时
+ * 会被 OS 深色偏好覆盖(同特异性后来居上),此处收紧为
+ * :not([data-theme]),严格对应 settings.theme === 'system' 语义。 */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --bg: #0f1115;
-    --bg-elev: #161922;
-    --bg-sidebar: #11131a;
-    --fg: #e7e9ee;
-    --fg-muted: #9aa3b2;
-    --border: #232732;
-    --accent: #60a5fa;
+    --bg-elev: #171a21;
+    --bg-sidebar: #12141b;
+    --bg-input: #1a1e27;
+    --text-1: #e8eaf0;
+    --text-2: #9aa3b5;
+    --text-3: #747d8f;
+    --border: #262b37;
+    --border-strong: #39404f;
+    --accent: #6d8bff;
+    --accent-soft: rgba(109, 139, 255, 0.14);
+    --accent-text: #9db4ff;
     --danger: #f87171;
-    --code-bg: #1b1d24;
+    --warning: #fbbf24;
+    --success: #4ade80;
+    --code-bg: #151820;
+    --code-border: #262b37;
+    --hl-keyword: #c792ea;
+    --hl-string: #9ece6a;
+    --hl-comment: #5c6578;
+    --hl-number: #ff9e64;
+    --hl-operator: #7dcfff;
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --selection: rgba(109, 139, 255, 0.28);
+    --scrollbar: #333a48;
+    --scrollbar-hover: #454e60;
+    --radius: 6px;
   }
+}
+
+/* ---------- 主题切换过渡(临时类,由 settings store 加/移除) ----------
+ * 仅在 theme-anim 存在的约 250ms 内生效,禁止常驻全局 * 过渡
+ * (避免首屏闪烁)。 */
+html.theme-anim body,
+html.theme-anim body * {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+/* ---------- 选区颜色 ---------- */
+::selection {
+  background: var(--selection);
+}
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
 }
 
 * {
@@ -84,7 +355,7 @@ button {
   color: inherit;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 4px 10px;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
@@ -105,9 +376,9 @@ select,
 textarea {
   font: inherit;
   color: inherit;
-  background: var(--bg);
+  background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 4px 8px;
 }
 
@@ -118,4 +389,223 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* ---------- CodeMirror Markdown 语法 class ----------
+ * 由 src/editor/markdownLanguage.ts 的 HighlightStyle 输出。
+ * 颜色走语法语义层 --syntax-*(add-004):标题按 1-6 级分色,
+ * 行内代码/粗体/斜体/删除线/链接/列表各有专属色,follow 映射内容配色。 */
+.cm-md-heading {
+  font-weight: 600;
+}
+
+.cm-md-heading-1 {
+  color: var(--syntax-h1);
+}
+
+.cm-md-heading-2 {
+  color: var(--syntax-h2);
+}
+
+.cm-md-heading-3 {
+  color: var(--syntax-h3);
+}
+
+.cm-md-heading-4 {
+  color: var(--syntax-h4);
+}
+
+.cm-md-heading-5 {
+  color: var(--syntax-h5);
+}
+
+.cm-md-heading-6 {
+  color: var(--syntax-h6);
+}
+
+.cm-md-link {
+  color: var(--syntax-link);
+  text-decoration: underline;
+}
+
+.cm-md-url {
+  color: var(--accent-text);
+}
+
+.cm-md-code {
+  color: var(--syntax-inline-code);
+  font-family: var(--font-mono);
+  background: var(--code-bg);
+  border-radius: calc(var(--radius) - 3px);
+}
+
+.cm-md-bold {
+  color: var(--syntax-bold);
+}
+
+.cm-md-italic {
+  color: var(--syntax-italic);
+}
+
+.cm-md-strike {
+  color: var(--syntax-strikethrough);
+  text-decoration: line-through;
+}
+
+.cm-md-list {
+  color: var(--syntax-list);
+}
+
+/* ============================================================
+ * 内容染色语义层(add-003)
+ * - 预览区正文的独立配色方案,与 UI 主题(界面壳)正交;
+ * - follow(默认)不写 data-content-theme 属性,下面的默认映射
+ *   让正文外观与 add-001 完全一致;
+ * - 其余方案由 :root[data-content-theme='...'] 覆盖语义变量,
+ *   仅作用于 .preview-pane__body / .markdown-body(见 PreviewPane)。
+ * ============================================================ */
+
+:root {
+  --content-bg: var(--bg);
+  --content-text: var(--text-1);
+  --content-heading: var(--text-1);
+  --content-text-2: var(--text-2);
+  --content-link: var(--accent);
+  --content-quote-bg: var(--bg-elev);
+  --content-quote-border: var(--accent);
+  --content-code-bg: var(--code-bg);
+  --content-code-border: var(--code-border);
+  --content-table-border: var(--border);
+  --content-hr: var(--border);
+}
+
+/* ---------- paper 纸张(暖白底 + 暖近黑字) ---------- */
+:root[data-content-theme='paper'] {
+  --content-bg: #fdfcf9;
+  --content-text: #26241f;
+  --content-heading: #1c1a16;
+  --content-text-2: #6b675e;
+  --content-link: #9a6b1f;
+  --content-quote-bg: #f7f4ec;
+  --content-quote-border: #c9b98a;
+  --content-code-bg: #f4f1e8;
+  --content-code-border: #e4dfd2;
+  --content-table-border: #e0dccf;
+  --content-hr: #d8d3c4;
+}
+
+/* ---------- sepia 护眼米黄(经典护眼底 + 深棕字) ---------- */
+:root[data-content-theme='sepia'] {
+  --content-bg: #f5eed6;
+  --content-text: #3d3526;
+  --content-heading: #322b1d;
+  --content-text-2: #6b6149;
+  --content-link: #7d5a12;
+  --content-quote-bg: #ede5cb;
+  --content-quote-border: #bfa96f;
+  --content-code-bg: #ece4c9;
+  --content-code-border: #ddd2b0;
+  --content-table-border: #d9cda9;
+  --content-hr: #cfc39e;
+}
+
+/* ---------- parchment 羊皮纸(黄褐底 + 棕黑字) ---------- */
+:root[data-content-theme='parchment'] {
+  --content-bg: #ece1c4;
+  --content-text: #453722;
+  --content-heading: #382c19;
+  --content-text-2: #665a40;
+  --content-link: #8c5e10;
+  --content-quote-bg: #e4d7b4;
+  --content-quote-border: #b09a63;
+  --content-code-bg: #e3d6b2;
+  --content-code-border: #d3c294;
+  --content-table-border: #cfc08e;
+  --content-hr: #c4b482;
+}
+
+/* ---------- night 夜间内容(深底浅字,可配浅色 UI 主题单独调暗内容区) ---------- */
+:root[data-content-theme='night'] {
+  --content-bg: #16181d;
+  --content-text: #c9cdd6;
+  --content-heading: #e6e9ef;
+  --content-text-2: #8b93a3;
+  --content-link: #7aa2f7;
+  --content-quote-bg: #1d2026;
+  --content-quote-border: #3d4453;
+  --content-code-bg: #1c1f26;
+  --content-code-border: #2a2f3a;
+  --content-table-border: #2f3541;
+  --content-hr: #3a4150;
+}
+
+/* ============================================================
+ * 语法语义层(add-004)
+ * - markdown 语法元素的等级化配色:标题 1-6 级各自配色,行内代码/
+ *   粗体/斜体/删除线/链接/列表标记各有专属色;
+ * - 同一套 --syntax-* 同时驱动编辑器源码高亮(cm-md-* class)与
+ *   预览渲染元素(.markdown-body),两边观感一致;
+ * - follow(默认)不写 data-syntax-theme 属性,默认映射让语法观感
+ *   与 add-003 后现状逐像素一致;其余方案覆盖语义变量;
+ * - 代码块内部高亮(--hl-* 五色)不属本层,仍由 UI 主题驱动。
+ * ============================================================ */
+
+:root {
+  --syntax-h1: var(--content-heading);
+  --syntax-h2: var(--content-heading);
+  --syntax-h3: var(--content-heading);
+  --syntax-h4: var(--content-text);
+  --syntax-h5: var(--content-text);
+  --syntax-h6: var(--content-text);
+  --syntax-inline-code: var(--content-text);
+  --syntax-bold: currentColor;
+  --syntax-italic: currentColor;
+  --syntax-strikethrough: currentColor;
+  --syntax-link: var(--content-link);
+  --syntax-list: var(--accent-text);
+}
+
+/* ---------- rainbow 彩虹标题(色相分级;色值按浅色内容底调校) ---------- */
+:root[data-syntax-theme='rainbow'] {
+  --syntax-h1: #c0392b;
+  --syntax-h2: #a8571a;
+  --syntax-h3: #8f7d1a;
+  --syntax-h4: #2e7d5b;
+  --syntax-h5: #2a6fa8;
+  --syntax-h6: #7a4fa8;
+  --syntax-inline-code: #83347c;
+  --syntax-bold: #b34700;
+  --syntax-italic: #55557f;
+  --syntax-strikethrough: #767c86;
+  --syntax-list: #6b5b8f;
+}
+
+/* ---------- academic 暖调学术(深蓝分级 + 棕金/深红强调) ---------- */
+:root[data-syntax-theme='academic'] {
+  --syntax-h1: #1f3a5f;
+  --syntax-h2: #2b4d74;
+  --syntax-h3: #37608a;
+  --syntax-h4: #44739f;
+  --syntax-h5: #5286b4;
+  --syntax-h6: #4d84b0;
+  --syntax-inline-code: #6b4a12;
+  --syntax-bold: #7d2a2a;
+  --syntax-italic: #4a5568;
+  --syntax-strikethrough: #7a7264;
+  --syntax-list: #556b2f;
+}
+
+/* ---------- mono 冷调极简(灰阶明度分级) ---------- */
+:root[data-syntax-theme='mono'] {
+  --syntax-h1: #14161a;
+  --syntax-h2: #262a31;
+  --syntax-h3: #3a3f49;
+  --syntax-h4: #4e545f;
+  --syntax-h5: #626975;
+  --syntax-h6: #767d8a;
+  --syntax-inline-code: #3f4a63;
+  --syntax-bold: #14161a;
+  --syntax-italic: #4e545f;
+  --syntax-strikethrough: #767d88;
+  --syntax-list: #4e545f;
 }

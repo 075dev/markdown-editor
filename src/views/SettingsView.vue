@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSettingsStore } from '@/stores/settings'
 import {
+  useSettingsStore,
   FONT_SIZE_MIN,
   FONT_SIZE_MAX,
   FONT_SIZE_DEFAULT,
+  THEMES,
+  THEME_LABELS,
+  CONTENT_THEMES,
+  CONTENT_THEME_LABELS,
+  SYNTAX_THEMES,
+  SYNTAX_THEME_LABELS,
   type Theme,
+  type ContentTheme,
+  type SyntaxTheme,
   type ViewMode,
 } from '@/stores/settings'
 import { listSystemFonts, clearFontCache, type FontList } from '@/services/fontService'
@@ -22,10 +30,10 @@ const customMonoInput = ref('')
 const customSansOpen = ref(false)
 const customMonoOpen = ref(false)
 
-const themes: Array<{ value: Theme; label: string }> = [
-  { value: 'system', label: '跟随系统' },
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
+/** 六主题 + system 特殊卡(卡片网格渲染顺序;system 固定末位) */
+const themeCards: Array<{ value: Theme; label: string; system: boolean }> = [
+  ...THEMES.map((value) => ({ value, label: THEME_LABELS[value], system: false })),
+  { value: 'system', label: THEME_LABELS.system, system: true },
 ]
 
 const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
@@ -33,6 +41,14 @@ const viewModes: Array<{ value: ViewMode; label: string; hint: string }> = [
   { value: 'split', label: '双栏', hint: '编辑器 + 预览' },
   { value: 'preview', label: '纯预览', hint: '只显示预览' },
 ]
+
+/** 正文染色方案选项(add-003;select 渲染顺序 = CONTENT_THEMES 声明序) */
+const contentThemeOptions: Array<{ value: ContentTheme; label: string }> =
+  CONTENT_THEMES.map((value) => ({ value, label: CONTENT_THEME_LABELS[value] }))
+
+/** 语法染色方案选项(add-004) */
+const syntaxThemeOptions: Array<{ value: SyntaxTheme; label: string }> =
+  SYNTAX_THEMES.map((value) => ({ value, label: SYNTAX_THEME_LABELS[value] }))
 
 async function refreshFonts() {
   loading.value = true
@@ -138,19 +154,84 @@ onMounted(() => {
             <span class="settings__row-name">主题</span>
             <span class="settings__row-hint">应用整体配色方案</span>
           </div>
-          <div class="settings__row-control" role="radiogroup" aria-label="主题">
-            <button
-              v-for="t in themes"
-              :key="t.value"
-              type="button"
-              class="settings__chip"
-              :class="{ 'is-active': settings.theme === t.value }"
-              :aria-pressed="settings.theme === t.value"
-              :data-testid="`theme-${t.value}`"
-              @click="settings.setTheme(t.value)"
+          <div class="settings__row-control">
+            <div class="theme-grid" role="radiogroup" aria-label="主题">
+              <button
+                v-for="t in themeCards"
+                :key="t.value"
+                type="button"
+                class="theme-card"
+                :class="{ 'is-active': settings.theme === t.value }"
+                role="radio"
+                :aria-checked="settings.theme === t.value"
+                :data-testid="`theme-${t.value}`"
+                @click="settings.setTheme(t.value)"
+              >
+                <span
+                  v-if="t.system"
+                  class="theme-card__preview theme-card__preview--system"
+                  aria-hidden="true"
+                >
+                  <span class="theme-card__sys-icon" />
+                </span>
+                <span
+                  v-else
+                  class="theme-card__preview"
+                  :data-swatch="t.value"
+                  aria-hidden="true"
+                >
+                  <span class="theme-card__swatch theme-card__swatch--bg" />
+                  <span class="theme-card__swatch theme-card__swatch--side" />
+                  <span class="theme-card__swatch theme-card__swatch--accent" />
+                </span>
+                <span class="theme-card__name">{{ t.label }}</span>
+                <span
+                  v-if="settings.theme === t.value"
+                  class="theme-card__check"
+                  aria-hidden="true"
+                >✓</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">正文染色</span>
+            <span class="settings__row-hint">预览区正文的独立配色(与界面主题分开)</span>
+          </div>
+          <div class="settings__row-control">
+            <select
+              :value="settings.contentTheme"
+              class="settings__select"
+              data-testid="content-theme-select"
+              aria-label="正文染色主题"
+              @change="settings.setContentTheme(($event.target as HTMLSelectElement).value as ContentTheme)"
             >
-              {{ t.label }}
-            </button>
+              <option v-for="c in contentThemeOptions" :key="c.value" :value="c.value">
+                {{ c.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">语法染色</span>
+            <span class="settings__row-hint">标题按等级分色,行内代码/粗体等专属色(编辑器与预览一致)</span>
+          </div>
+          <div class="settings__row-control">
+            <select
+              :value="settings.syntaxTheme"
+              class="settings__select"
+              data-testid="syntax-theme-select"
+              aria-label="语法染色主题"
+              @change="settings.setSyntaxTheme(($event.target as HTMLSelectElement).value as SyntaxTheme)"
+            >
+              <option v-for="s in syntaxThemeOptions" :key="s.value" :value="s.value">
+                {{ s.label }}
+              </option>
+            </select>
           </div>
         </div>
 
@@ -308,6 +389,51 @@ onMounted(() => {
             </button>
           </div>
         </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">同步滚动（双栏）</span>
+            <span class="settings__row-hint">
+              编辑器滚动时按比例驱动预览区；预览区滚动时反之亦然。
+              单栏视图下不生效。
+            </span>
+          </div>
+          <div class="settings__row-control">
+            <button
+              type="button"
+              class="settings__chip"
+              :class="{ 'is-active': settings.syncScroll }"
+              :aria-pressed="settings.syncScroll"
+              :data-testid="settings.syncScroll ? 'sync-scroll-on' : 'sync-scroll-off'"
+              :disabled="settings.viewMode !== 'split'"
+              @click="settings.toggleSyncScroll"
+            >
+              {{ settings.syncScroll ? '开' : '关' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="settings__row">
+          <div class="settings__row-label">
+            <span class="settings__row-name">自动保存</span>
+            <span class="settings__row-hint">
+              内容变更 1.5 秒后自动保存,窗口失焦时立即保存全部未保存标签;
+              保存失败自动重试。关闭后仅 Ctrl+S 手动保存,冲突安全网仍生效。
+            </span>
+          </div>
+          <div class="settings__row-control">
+            <button
+              type="button"
+              class="settings__chip"
+              :class="{ 'is-active': settings.autoSaveEnabled }"
+              :aria-pressed="settings.autoSaveEnabled"
+              :data-testid="settings.autoSaveEnabled ? 'autosave-on' : 'autosave-off'"
+              @click="settings.toggleAutoSaveEnabled"
+            >
+              {{ settings.autoSaveEnabled ? '开' : '关' }}
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -326,7 +452,7 @@ onMounted(() => {
   height: 100vh;
   width: 100%;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   overflow: hidden;
 }
 
@@ -343,7 +469,7 @@ onMounted(() => {
 .settings__back,
 .settings__reset {
   font: inherit;
-  color: var(--fg);
+  color: var(--text-1);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -382,7 +508,7 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-muted);
+  color: var(--text-2);
   margin: 0 0 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
@@ -408,7 +534,7 @@ onMounted(() => {
 
 .settings__row-hint {
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
 }
 
 .settings__current {
@@ -426,11 +552,157 @@ onMounted(() => {
   align-items: center;
 }
 
+/* ---------- 主题卡片选择器(add-001) ---------- */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(128px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  background: var(--bg);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+
+.theme-card:hover {
+  border-color: var(--accent);
+}
+
+.theme-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-1);
+}
+
+.theme-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-card__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 48px;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--sw-bg, var(--bg-elev));
+}
+
+.theme-card__preview--system {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elev);
+}
+
+/* 纯 CSS 显示器图标(跟随系统特殊卡) */
+.theme-card__sys-icon {
+  position: relative;
+  width: 20px;
+  height: 13px;
+  border: 2px solid var(--text-2);
+  border-radius: 2px;
+}
+
+.theme-card__sys-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 2px;
+  background: var(--text-2);
+}
+
+.theme-card__swatch {
+  display: block;
+  flex: 1;
+  border-radius: 2px;
+}
+
+.theme-card__swatch--side {
+  background: var(--sw-side, transparent);
+}
+
+.theme-card__swatch--accent {
+  flex: 0 0 9px;
+  background: var(--sw-accent, var(--accent));
+}
+
+/* 各主题代表色样本(与 global.css 对应主题的 --bg/--bg-sidebar/--accent 一致) */
+.theme-card__preview[data-swatch='light'] {
+  --sw-bg: #ffffff;
+  --sw-side: #f2f3f6;
+  --sw-accent: #4f46e5;
+}
+
+.theme-card__preview[data-swatch='dark'] {
+  --sw-bg: #0f1115;
+  --sw-side: #12141b;
+  --sw-accent: #6d8bff;
+}
+
+.theme-card__preview[data-swatch='oled'] {
+  --sw-bg: #000000;
+  --sw-side: #050507;
+  --sw-accent: #6e9fff;
+}
+
+.theme-card__preview[data-swatch='paper'] {
+  --sw-bg: #faf4e8;
+  --sw-side: #f5eedf;
+  --sw-accent: #a3692d;
+}
+
+.theme-card__preview[data-swatch='bluegray'] {
+  --sw-bg: #f0f3f7;
+  --sw-side: #eaeef4;
+  --sw-accent: #2e6f9e;
+}
+
+.theme-card__preview[data-swatch='rose'] {
+  --sw-bg: #211a1e;
+  --sw-side: #241c20;
+  --sw-accent: #e8758f;
+}
+
+.theme-card__name {
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-1);
+}
+
+.theme-card.is-active .theme-card__name {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.theme-card__check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 12px;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
 .settings__chip {
   font: inherit;
   padding: 6px 14px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 16px;
   cursor: pointer;
@@ -451,7 +723,7 @@ onMounted(() => {
   font-size: 12px;
   padding: 2px 8px;
   background: var(--bg);
-  color: var(--fg-muted);
+  color: var(--text-2);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
@@ -459,7 +731,7 @@ onMounted(() => {
 
 .settings__mini:hover {
   border-color: var(--accent);
-  color: var(--fg);
+  color: var(--text-1);
 }
 
 .settings__select {
@@ -467,7 +739,7 @@ onMounted(() => {
   min-width: 200px;
   padding: 6px 10px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 4px;
   font: inherit;
@@ -490,7 +762,7 @@ onMounted(() => {
   min-width: 200px;
   padding: 6px 10px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text-1);
   border: 1px solid var(--border);
   border-radius: 4px;
   font: inherit;
@@ -519,7 +791,7 @@ onMounted(() => {
 .settings__note {
   margin: 0;
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-2);
   text-align: center;
 }
 </style>
