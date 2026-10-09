@@ -11,7 +11,7 @@ review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: add-005(kUML 图表支持)+ add-006(语法速查面板)shipped via PR #2(fa29827,契约 0.3.1,380/380 + cargo 17/17,双增量评审 approved 0 critical,待人工合并,2026-10-09)
+last_activity: PR #2 已合并至 main(merge 9a6b026)+ v0.3.0 发布(add-005 kUML 支持 + add-006 语法速查面板,tag 4ca4a2e,Release 含 msi/setup/exe 三产物,Latest,2026-10-09)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
