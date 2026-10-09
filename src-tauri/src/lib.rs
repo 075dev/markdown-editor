@@ -167,7 +167,8 @@ pub fn run() {
             allow_workspace_dir,
             open_external,
             get_plantuml_server_url,
-            take_startup_open_path
+            take_startup_open_path,
+            render_kuml
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -672,6 +673,225 @@ fn get_plantuml_server_url() -> Option<String> {
     guard.as_ref().map(|c| c.diagram_base.clone())
 }
 
+/* ---------- kUML 渲染（add-005，invoke('render_kuml', { source }) → { svg } | "CODE: message"） ---------- */
+
+/// kUML CLI 探测候选名。`.cmd` / `.bat` 批处理在 Windows 上不能被
+/// CreateProcess 直接执行，命中后需经 `cmd /C` 调起（见 kuml_needs_cmd_wrapper）。
+const KUML_CANDIDATES: &[&str] = &["kuml", "kuml.exe", "kuml.cmd", "kuml.bat"];
+
+/// 渲染超时上限。JVM + Kotlin 脚本冷启动约 2-5s，60s 已是极端余量。
+const KUML_TIMEOUT_MS: u64 = 60_000;
+/// 子进程退出轮询间隔。
+const KUML_POLL_INTERVAL_MS: u64 = 100;
+
+/// 错误串统一 "CODE: message" 前缀（同 read_file / open_external 先例）。
+/// message 文案刻意避开 "not found / denied / invalid" 等会被前端
+/// normalizeError 按关键词误分类的词 —— 分类职责由 CODE 承担。
+fn kuml_not_found(msg: impl std::fmt::Display) -> String {
+    format!("KUML_NOT_FOUND: {msg}")
+}
+
+fn kuml_render_failed(msg: impl std::fmt::Display) -> String {
+    format!("KUML_RENDER_FAILED: {msg}")
+}
+
+/// 探测 PATH 中的 kuml CLI（候选名见 KUML_CANDIDATES）。
+/// 复用 which_first（逐个 PATH 目录试裸名 + .exe）；.cmd/.bat 按字面名命中。
+fn find_kuml() -> Option<PathBuf> {
+    for name in KUML_CANDIDATES {
+        if let Ok(path) = which_first(name) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// `.cmd` / `.bat` 批处理需经 `cmd /C` 调起，其余（exe / 无扩展名）直接执行。
+fn kuml_needs_cmd_wrapper(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("cmd") || e.eq_ignore_ascii_case("bat"))
+        .unwrap_or(false)
+}
+
+/// 由输入路径推断官方 SVG 输出路径。
+/// 官方行为：`kuml render order-domain.kuml.kts --format svg` 产出同目录
+/// `order-domain.svg`。注意 `.kuml.kts` 双扩展名的 file_stem 是
+/// "order-domain.kuml"，需再剥一层 ".kuml" 才是真正的图名。
+fn expected_svg_path(input: &Path) -> PathBuf {
+    let stem = input
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    let stem = stem.strip_suffix(".kuml").unwrap_or(stem);
+    input.with_file_name(format!("{stem}.svg"))
+}
+
+/// 从任意文本（stdout / SVG 文件内容）中提取完整 SVG 文档。
+/// 取首个 `<svg` 到最后一个 `</svg>`（含）：容忍 `<?xml ...?>` 声明前缀与
+/// 前后日志噪音；用 rfind 是为了嵌套 `<svg>` 时仍取到根元素的闭合标签。
+/// 返回值保证以 `<svg` 开头（契约：完整 SVG 文档，xml 声明剥除）。
+fn extract_svg_document(raw: &str) -> Option<String> {
+    const OPEN: &str = "<svg";
+    const CLOSE: &str = "</svg>";
+    let start = raw.find(OPEN)?;
+    let end = raw[start..].rfind(CLOSE)? + start + CLOSE.len();
+    Some(raw[start..end].to_string())
+}
+
+/// 诊断信息截尾：stderr 过长时不撑爆 IPC 通道。
+fn tail_chars(s: &str, max: usize) -> String {
+    let count = s.chars().count();
+    if count <= max {
+        return s.to_string();
+    }
+    s.chars().skip(count - max).collect()
+}
+
+/// 组装 kuml 子进程命令：stdout/stderr 全部 piped 捕获；Windows 下加
+/// CREATE_NO_WINDOW（0x08000000），避免渲染时闪出控制台窗口。
+fn build_kuml_command(kuml_path: &Path, args: &[String]) -> std::process::Command {
+    let mut command = if kuml_needs_cmd_wrapper(kuml_path) {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C").arg(kuml_path);
+        c
+    } else {
+        std::process::Command::new(kuml_path)
+    };
+    command.args(args);
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
+/// 把子进程管道读到字符串（容错非 UTF-8，lossy）。
+/// 必须在独立线程里读：若等子进程退出后再读，大量输出会把管道写满、
+/// 子进程卡在 write 上而我们卡在 try_wait —— 双方互等死锁。
+fn read_pipe_to_string<R: std::io::Read + Send + 'static>(mut pipe: R) -> String {
+    let mut buf = Vec::new();
+    let _ = pipe.read_to_end(&mut buf);
+    String::from_utf8_lossy(&buf).into_owned()
+}
+
+/// kUML 渲染同步主体。无状态：每次调用独立探测、写盘、执行、清理，
+/// 不驻留任何子进程/线程（每次冷启动，前端负责按源码哈希缓存）。
+fn run_kuml_render(source: &str) -> Result<String, String> {
+    // 1. 探测 CLI —— 不在 PATH 直接短路，不做任何 IO。
+    let kuml_path = find_kuml()
+        .ok_or_else(|| kuml_not_found("kuml CLI is missing from PATH (install: choco install kuml)"))?;
+    eprintln!("[kuml] cli: {}", kuml_path.display());
+
+    // 2. 随机临时目录 + 写入 <名>.kuml.kts（pid + 纳秒时间戳，并发调用不碰撞）。
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp_dir =
+        std::env::temp_dir().join(format!("markdown-editor-kuml-{}-{}", std::process::id(), nanos));
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| kuml_render_failed(format!("failed to create temp dir: {e}")))?;
+    let input_path = temp_dir.join(format!("diagram-{nanos}.kuml.kts"));
+    std::fs::write(&input_path, source)
+        .map_err(|e| kuml_render_failed(format!("failed to write input file: {e}")))?;
+    eprintln!("[kuml] input: {}", input_path.display());
+
+    // 3+4. 执行 `kuml render <input> --format svg` + 输出发现。
+    // 闭包包住错误路径，保证任何提前返回都会走到底部的清理。
+    let result = (|| -> Result<String, String> {
+        let args = vec![
+            "render".to_string(),
+            input_path.to_string_lossy().into_owned(),
+            "--format".to_string(),
+            "svg".to_string(),
+        ];
+        let mut child = build_kuml_command(&kuml_path, &args)
+            .spawn()
+            .map_err(|e| kuml_render_failed(format!("failed to spawn kuml: {e}")))?;
+
+        let stdout_pipe = child.stdout.take();
+        let stderr_pipe = child.stderr.take();
+        let stdout_reader =
+            std::thread::spawn(move || stdout_pipe.map(read_pipe_to_string).unwrap_or_default());
+        let stderr_reader =
+            std::thread::spawn(move || stderr_pipe.map(read_pipe_to_string).unwrap_or_default());
+
+        // 超时：spawn 后轮询 try_wait，到 60s 上限 kill 并回收。
+        let started = std::time::Instant::now();
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) => {
+                    if started.elapsed() >= Duration::from_millis(KUML_TIMEOUT_MS) {
+                        let _ = child.kill();
+                        let _ = child.wait(); // 回收僵尸进程，避免句柄泄漏
+                        return Err(kuml_render_failed(format!(
+                            "render timed out after {}s (process killed)",
+                            KUML_TIMEOUT_MS / 1000
+                        )));
+                    }
+                    std::thread::sleep(Duration::from_millis(KUML_POLL_INTERVAL_MS));
+                }
+                Err(e) => {
+                    let _ = child.kill();
+                    return Err(kuml_render_failed(format!("wait on kuml failed: {e}")));
+                }
+            }
+        };
+        let stdout_text = stdout_reader.join().unwrap_or_default();
+        let stderr_text = stderr_reader.join().unwrap_or_default();
+        eprintln!(
+            "[kuml] exit: {status}, stdout {}B, stderr {}B",
+            stdout_text.len(),
+            stderr_text.len()
+        );
+
+        // 输出发现顺序：① 输入同目录 <stem>.svg（官方行为）
+        //               ② stdout 中从 <svg 起的完整文档（剥掉 xml 声明）
+        let expected_svg = expected_svg_path(&input_path);
+        let svg = std::fs::read_to_string(&expected_svg)
+            .ok()
+            .and_then(|text| extract_svg_document(&text))
+            .or_else(|| extract_svg_document(&stdout_text));
+
+        svg.ok_or_else(|| {
+            kuml_render_failed(format!(
+                "no SVG produced (exit: {status}); stderr: {}",
+                tail_chars(stderr_text.trim(), 500)
+            ))
+        })
+    })();
+
+    // 5. 临时目录 best-effort 清理（失败不报错）。
+    let _ = std::fs::remove_dir_all(&temp_dir);
+
+    result
+}
+
+/// 渲染 kUML 源码为 SVG。前端：`invoke('render_kuml', { source })`。
+/// 成功 `Ok({ svg })` —— 以 `<svg` 开头的完整 SVG 文档；
+/// 失败 `Err("CODE: message")`：
+///   - KUML_NOT_FOUND：kuml CLI 不在 PATH
+///   - KUML_RENDER_FAILED：脚本错误 / 找不到输出 / 超时（上限 60s）
+/// async + spawn_blocking：渲染最长可阻塞 60s，不占死 async 运行时线程。
+#[tauri::command]
+async fn render_kuml(source: String) -> Result<KumlRenderOk, String> {
+    let joined = tauri::async_runtime::spawn_blocking(move || run_kuml_render(&source)).await;
+    let svg =
+        joined.map_err(|e| kuml_render_failed(format!("render task failed to join: {e}")))??;
+    Ok(KumlRenderOk { svg })
+}
+
+#[derive(serde::Serialize)]
+struct KumlRenderOk {
+    svg: String,
+}
+
 #[cfg(test)]
 mod startup_open_tests {
     // 复现(bugfix-001):系统"打开方式"传入的文档路径当前无人消费。
@@ -752,5 +972,100 @@ mod open_external_tests {
         assert!(validate_external_target("example.com").is_err());
         assert!(validate_external_target("www.example.com/path").is_err());
         assert!(validate_external_target("/local/path/file.md").is_err());
+    }
+}
+
+#[cfg(test)]
+mod render_kuml_tests {
+    // add-005 W1:render_kuml 的纯逻辑单测,伴随实现编写。
+    // 本机(以及大多数用户机器)未安装 kuml CLI,真实渲染路径无法单测;
+    // 唯一可条件真测的分支是 find_kuml() == None → KUML_NOT_FOUND,
+    // 用 `if find_kuml().is_some() { return; }` 形式保证装了 kuml 的机器不翻车。
+    use super::*;
+
+    #[test]
+    fn candidates_cover_exe_cmd_bat_variants() {
+        assert_eq!(
+            KUML_CANDIDATES.to_vec(),
+            vec!["kuml", "kuml.exe", "kuml.cmd", "kuml.bat"]
+        );
+    }
+
+    #[test]
+    fn expected_svg_strips_double_kuml_kts_extension() {
+        let input = Path::new("tmp").join("diagram-123.kuml.kts");
+        assert_eq!(
+            expected_svg_path(&input),
+            Path::new("tmp").join("diagram-123.svg")
+        );
+    }
+
+    #[test]
+    fn expected_svg_keeps_unrelated_stem_as_is() {
+        let input = Path::new("tmp").join("foo.txt");
+        assert_eq!(expected_svg_path(&input), Path::new("tmp").join("foo.svg"));
+    }
+
+    #[test]
+    fn cmd_and_bat_need_wrapper_exe_does_not() {
+        assert!(kuml_needs_cmd_wrapper(Path::new("tools/kuml.cmd")));
+        assert!(kuml_needs_cmd_wrapper(Path::new("tools/KUML.BAT")));
+        assert!(!kuml_needs_cmd_wrapper(Path::new("tools/kuml.exe")));
+        assert!(!kuml_needs_cmd_wrapper(Path::new("tools/kuml")));
+    }
+
+    #[test]
+    fn extract_svg_from_plain_document() {
+        let raw = "<svg xmlns=\"http://www.w3.org/2000/svg\"><g/></svg>";
+        assert_eq!(extract_svg_document(raw).as_deref(), Some(raw));
+    }
+
+    #[test]
+    fn extract_svg_strips_xml_declaration_and_noise() {
+        let raw = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                   [kuml] rendering order-domain...\n\
+                   <svg width=\"10\"><g>hi</g></svg>\n\
+                   [done]";
+        let svg = extract_svg_document(raw).expect("should extract svg document");
+        assert!(svg.starts_with("<svg"), "got: {svg}");
+        assert!(svg.ends_with("</svg>"), "got: {svg}");
+    }
+
+    #[test]
+    fn extract_svg_keeps_outer_span_for_nested_svg() {
+        let raw = "<svg><desc>outer</desc><svg>inner</svg></svg>";
+        assert_eq!(extract_svg_document(raw).as_deref(), Some(raw));
+    }
+
+    #[test]
+    fn extract_svg_returns_none_without_complete_document() {
+        assert_eq!(extract_svg_document("no output at all"), None);
+        assert_eq!(extract_svg_document("<svg>unclosed"), None);
+        assert_eq!(extract_svg_document(""), None);
+    }
+
+    #[test]
+    fn error_constructors_use_code_prefix() {
+        assert_eq!(kuml_not_found("x"), "KUML_NOT_FOUND: x");
+        assert_eq!(kuml_render_failed("y"), "KUML_RENDER_FAILED: y");
+    }
+
+    #[test]
+    fn tail_chars_limits_output() {
+        assert_eq!(tail_chars("abcdef", 10), "abcdef");
+        assert_eq!(tail_chars("abcdef", 2), "ef");
+    }
+
+    #[test]
+    fn missing_cli_yields_kuml_not_found_error() {
+        if find_kuml().is_some() {
+            // 装了 kuml 的机器:探测命中,NOT_FOUND 分支不适用,跳过。
+            return;
+        }
+        let err = run_kuml_render("A -> B").unwrap_err();
+        assert!(
+            err.starts_with("KUML_NOT_FOUND: "),
+            "unexpected error: {err}"
+        );
     }
 }

@@ -7,6 +7,10 @@ import './styles/global.css'
 import { isEditableTarget, readSelection, writeClipboard } from '@/services/selection'
 import { getEditorViewFromDom } from '@/editor/createEditor'
 import { copyFromView, cutFromView, pasteIntoView } from '@/services/editorClipboard'
+import { useSyntaxCheatsheet } from '@/composables/useSyntaxCheatsheet'
+
+// 语法速查浮层(add-006):编辑器右键菜单的入口之一
+const cheatsheet = useSyntaxCheatsheet()
 
 const app = createApp(App)
 app.use(createPinia())
@@ -70,6 +74,13 @@ window.addEventListener('contextmenu', async (e: MouseEvent) => {
         label: '粘贴',
         onSelect: () => {
           void pasteIntoView(editorView)
+        },
+      },
+      {
+        key: 'syntax-cheatsheet',
+        label: '语法速查 (F1)',
+        onSelect: () => {
+          cheatsheet.openSheet()
         },
       },
     ])

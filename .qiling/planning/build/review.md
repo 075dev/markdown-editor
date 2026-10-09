@@ -15,6 +15,18 @@ inputs:
 review_tier: THOROUGH (30 文件 > 20,涉及状态机/错误处理路径;全量三结论 + 对抗检查)
 ---
 
+## 交付评审汇总(2026-10-09,add-005 + add-006 交付增量)
+
+总体 verdict:**approved**。本次交付范围(`67171c6..7a2e899`,分支 ql/add-005-kuml)内各增量的独立评审结论:
+
+| 增量 | 评审方式 | 轮次 | 结论 |
+|------|----------|------|------|
+| add-005 kUML 图表支持 | ql-reviewer 三结论 | 1 轮 | approved(0 critical / 5 non-critical;N1 sanitizer 加固已修,N5 EOF 已补,N2/N3/N4 记录) |
+| add-006 应用内语法速查面板 | ql-reviewer 三结论 | 1 轮 | approved(0 critical / 2 non-critical;N1 经官方 README 原文闭环,N2 文案已修) |
+
+各轮详情:[./add-005-review.md](./add-005-review.md)、[./add-006-review.md](./add-006-review.md)。
+评审发现的既有缺陷(超增量范围,候选 bugfix-006):mermaid 客户端渲染选择器对真实管线输出命中 0(静默失效)。
+
 ## 交付评审汇总(2026-09-28,本次交付增量)
 
 总体 verdict:**approved**。本次交付范围(`d0a7a53..e5cd0f0`)内各增量的独立评审结论:

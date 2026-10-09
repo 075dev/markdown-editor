@@ -311,3 +311,132 @@ flowchart LR
 | 删除线 ~~xx~~ | 独立方案下有专属色;follow 下继承(currentColor,与现状一致) |
 | 围栏代码块(```yaml 等) | 不受语法染色影响(文字继承内容配色,内部高亮由 --hl-* 驱动) |
 | 深色内容底(night)+ 固定方案(rainbow 等) | 方案色值按浅色内容底调校,深底组合对比度可能下降(已知组合限制,正交组合由用户自定) |
+
+## kUML 图表渲染约定(add-005,新增 1 端点,无新事件)
+
+Markdown 围栏代码块 ```` ```kuml ```` 中的 kUML DSL(Kotlin 脚本,https://kuml.dev)
+在预览区渲染为 SVG。kUML 无公开渲染端点(与 PlantUML 不同),渲染依赖本机 kuml CLI,
+因此走 **mermaid 模式**:渲染管线只输出源码块,PreviewPane 在 HTML 注入后异步调用
+`/ipc/render-kuml` 换入 SVG。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant P as 预览区(PreviewPane)
+    participant K as kuml service
+    participant C as 源码哈希缓存
+    participant R as Rust render_kuml
+    participant CLI as kuml CLI(子进程)
+
+    P->>K: renderKumlBlocks(root)
+    K->>K: 扫 pre > code.language-kuml
+    K->>C: 查 hash(source)
+    alt 缓存命中
+        C-->>K: 已渲染 SVG
+    else 缓存未命中(Tauri 模式)
+        K->>R: invoke /ipc/render-kuml { source }
+        R->>CLI: kuml render <临时 .kuml.kts> --format svg
+        alt CLI 不在 PATH
+            R-->>K: Error { code: KUML_NOT_FOUND }
+        else 脚本错误/超时 60s
+            R-->>K: Error { code: KUML_RENDER_FAILED }
+        else 成功
+            R-->>K: { svg }
+            K->>K: DOMParser 清洗(拒 script/foreignObject/on*/javascript:)
+            K->>C: 写入缓存
+        end
+    end
+    K->>P: 替换 pre 内容为 SVG(data-kuml-state=ok)
+    Note over P: 失败/未安装 → 保留源码块 + 状态标记,不阻断编辑
+```
+
+行为细则:
+
+1. **管线侧**:`stripDiagramCode` 的 SKIP_LANGS 增加 `kuml`(与 mermaid/plantuml 同待遇,
+   防通用高亮器把 hl-* span 撒进源码块);渲染管线不新增 rehype 插件(无 URL 可挂 img)。
+2. **前端服务**(src/services/kuml.ts,mermaid.ts 同构):扫 `pre > code.language-kuml`
+   (实证:stripDiagramCode 输出的 language 类在 `<code>` 上,`<pre>` 无类——
+   勿用 `pre.language-kuml > code`,见构建报告 add-005 偏离记录),
+   逐块渲染;`data-kuml-state` ∈ pending / ok / fail / not-installed / skipped;
+   按源码哈希缓存 SVG(Map),防抖重渲染不重复调 CLI(冷启动 2-5s)。
+3. **SVG 清洗**(零依赖):DOMParser 按 XML 解析,出现 `<script>`、`<foreignObject>`、
+   `on*` 事件属性、`javascript:` 引用即整块拒绝(fail);解析失败同样拒绝。
+   清洗发生在 innerHTML 注入之前,弥补该路径绕过 rehype-sanitize 的缺口。
+4. **降级**:KUML_NOT_FOUND → 保留源码块 + `data-kuml-state=not-installed`
+   (CSS ::after 提示「kUML CLI 未安装,显示源码」);KUML_RENDER_FAILED →
+   保留源码块 + fail;Web 模式 / jsdom → skipped,源码原样保留。
+5. **桌面限定**:渲染依赖 Rust 子进程,Web 模式不调用端点;编辑不受任何影响。
+
+边缘场景:
+
+| 场景 | 期望行为 |
+|------|----------|
+| kuml CLI 未安装 | 源码块保留,not-installed 提示,不报错打断编辑 |
+| kUML 脚本语法错误 | 源码块保留,fail;修正后防抖重渲染走缓存未命中路径重新调用 |
+| 同一源码多处出现 | 缓存命中,只调一次 CLI |
+| 渲染中再次编辑触发重渲染 | pending 块跳过,不并发重复调 CLI |
+| SVG 含 script/foreignObject/on* 属性 | 整块拒绝,保留源码块(fail) |
+| CLI 渲染超过 60s | 计入 KUML_RENDER_FAILED,源码块保留 |
+| Web 模式打开含 kuml 块的文档 | skipped,源码原样显示 |
+| 与 mermaid/plantuml 块共存 | 各走各的渲染路径,互不影响 |
+
+## 语法速查面板约定(add-006,纯前端,无 IPC 面)
+
+应用内语法速查浮层:把编辑器支持的六类语法(Markdown 基础 / GFM 扩展 / 数学 KaTeX /
+图表 mermaid / 图表 PlantUML / 图表 kUML)做成「名称 + 语法示例 + 一句话说明」的
+条目集,供写作时快速查用。内容打包内置,离线可用。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant T as 入口(TitleBar/右键菜单)
+    participant H as HomeView 全局按键
+    participant M as 速查浮层(SyntaxCheatsheetModal)
+    participant S as 速查内容(内置数据模块)
+    participant C as 系统剪贴板
+
+    U->>H: F1
+    H->>M: 打开/关闭(toggle)
+    T->>M: 打开(按钮/菜单项)
+    M->>S: 渲染全部条目
+    U->>M: 关键词过滤
+    M->>M: 标题/示例/说明包含即保留
+    U->>M: 点击条目「复制」
+    M->>C: writeClipboard(语法示例)
+    M-->>U: 按钮反馈「已复制」
+    U->>M: Esc
+    M->>U: 关闭,焦点归还触发元素
+```
+
+行为细则:
+
+1. **入口三路**:F1(HomeView 全局 keydown,与 Ctrl+S 等同层注册,注释块同步)、
+   标题栏「语法速查」按钮、编辑器右键菜单「语法速查 (F1)」项(main.ts 菜单序列)。
+2. **模态浮层**:`role="dialog"` + aria 标签;打开聚焦搜索框,Tab 焦点循环锁在浮层内,
+   Esc 关闭并把焦点归还触发元素;浮层只拦截 F1/Esc/Tab,**其余全局快捷键
+   (Ctrl+S/N/O 等)行为不变**。
+3. **内容域(六节)**:Markdown 基础、GFM 扩展(表格/任务列表/删除线/自动链接)、
+   数学(KaTeX 行内/块)、mermaid、PlantUML、kUML(Kotlin DSL,示例只使用官方
+   README 验证过的构造:classDiagram/classOf/enumOf/attribute/operation/association,
+   禁止臆造);每条目 `{ id, title, description, snippet }`,中文说明。
+4. **搜索**:关键词对 title/description/snippet 做大小写不敏感的包含匹配,命中即保留;
+   无匹配显示空态「无匹配条目」;清空恢复全部。
+5. **复制**:条目级「复制」按钮 → 复用 src/services/selection.ts 的 writeClipboard,
+   成功按钮短暂变「已复制」;**不自动插入编辑器**(v1 只读速查,插入延后——
+   不碰编辑器事务与撤销栈)。
+6. **零状态**:浮层开关状态为模块级组合式状态(参照 useContextMenu 惯例),
+   不入 settings 持久化;关闭即销毁内容滚动位置不做保留要求。
+
+边缘场景:
+
+| 场景 | 期望行为 |
+|------|----------|
+| 浮层打开时按 Ctrl+S | 保存照常执行(浮层只拦截 F1/Esc/Tab) |
+| 浮层打开时再按 F1 | 关闭浮层(toggle) |
+| Esc 在浮层关闭时按下 | 无操作,不冒泡副作用 |
+| 搜索无结果 | 空态提示,不报错 |
+| 剪贴板写入失败(writeClipboard 非 ok) | 按钮短暂显示「复制失败」,源示例仍可见 |
+| 设置页/其他路由下按 F1 | 不弹速查(浮层仅编辑器路由 HomeView 挂载) |
+| 窄窗口 | 浮层限宽限高、内部滚动,不溢出视口 |

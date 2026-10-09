@@ -5,6 +5,7 @@ import { renderMarkdown } from '@/markdown/pipeline'
 import { classifyPreviewLink, resolveDocumentHref } from '@/markdown/linkResolution'
 import { canOpenInWindow, openDiagramWindow } from '@/services/diagramWindow'
 import { renderMermaidBlocks } from '@/services/mermaid'
+import { renderKumlBlocks } from '@/services/kuml'
 import { isTauri } from '@/services/env'
 import { openExternal } from '@/services/externalLinks'
 import { normalizeError } from '@/services/errors'
@@ -171,6 +172,14 @@ watchEffect(async () => {
     await renderMermaidBlocks(root)
   } catch (err) {
     console.error('[PreviewPane] mermaid render pipeline failed:', err)
+  }
+
+  // 4) kUML 客户端渲染（add-005）：同样吞错不抛 —— 失败 / CLI 未安装时
+  //    renderKumlBlocks 内部保留源码块并打 data-kuml-state，这里只兜底异常。
+  try {
+    await renderKumlBlocks(root)
+  } catch (err) {
+    console.error('[PreviewPane] kuml render pipeline failed:', err)
   }
 })
 
@@ -443,5 +452,18 @@ const fileName = computed(() => workspace.activeTab?.name ?? '')
 }
 .markdown-body pre.language-mermaid[data-mermaid-state='pending'] {
   opacity: 0.5;
+}
+
+/*
+ * kUML（add-005）：CLI 未安装时保留源码块，附 muted 提示行
+ * （muted 走预览内容区次要文字变量 --content-text-2）。
+ * fail / pending 不加样式 —— 保持源码块外观即降级形态（契约约定）。
+ */
+.markdown-body pre[data-kuml-state='not-installed']::after {
+  content: 'kUML CLI 未安装,显示源码(安装:kuml.dev)';
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--content-text-2);
 }
 </style>

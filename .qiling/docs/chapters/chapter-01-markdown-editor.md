@@ -356,6 +356,49 @@ events: 0
 - 时序与细则见 `.planning/context/event-flow.md`「文档链接跳转约定(add-002)」。
 <!-- /manual:increment -->
 
+### A.5 add-005 增量留档:kUML 图表支持(2026-10-09 并入)
+
+<!-- manual:increment -->
+> 落点判定:自动判断并入本章——kUML 是预览渲染管线能力(与 add-002 预览链接同域);
+> 图表家族无独立章节,`open-diagram-window` 在 chapter-02 属构建历史归属而非主题归属。
+
+**新端点(第 9 个 Rust command,契约 v0.2.2 → 0.3.0):**
+
+| 端点 | 说明 | 错误码 |
+|------|------|--------|
+| POST `/ipc/render-kuml` | 渲染 kUML DSL 源码(https://kuml.dev,Kotlin 脚本)为 SVG;Rust 探测 PATH 中 kuml CLI(choco install kuml 自带 Java 21),临时 `.kuml.kts` + `kuml render --format svg`,输出文件优先、stdout 兜底,超时 60s | 500 KUML_RENDER_FAILED(脚本错误/超时)、503 KUML_NOT_FOUND(CLI 未装) |
+
+**行为增量(mermaid 模式,无新事件):**
+
+- `stripDiagramCode` SKIP_LANGS += `kuml`;渲染管线只输出源码块(无 URL 可挂 img,与 PlantUML 不同);
+- 新前端模块 `src/services/kuml.ts`:扫 `pre > code.language-kuml`(实证:language 类在 `<code>` 上)、按源码 FNV-1a 哈希缓存(冷启动 2-5s)、`data-kuml-state` ∈ pending/ok/fail/not-installed/skipped;
+- **SVG 清洗**(零依赖 DOMParser):拒 script/foreignObject/任意前缀 on* 属性/任意 `*:href` 的 javascript: 引用(含 scheme 内嵌 tab/换行变体)——该注入路径绕过 rehype-sanitize,清洗必须在 innerHTML 前;
+- 降级:CLI 未装 → 源码块 + CSS 提示;渲染失败 → 源码块保留;Web 模式 → skipped;均不阻断编辑;
+- `PreviewPane.vue` watchEffect 步骤 4 接线(不动步骤 1-3);
+- 时序与细则见 `.qiling/planning/context/event-flow.md`「kUML 图表渲染约定(add-005)」。
+
+**明确不做(延后):** 图表独立窗口(SVG→URL 桥接风险)、编辑器侧 Kotlin 高亮、`kuml serve` 常驻模式、设置页配置项。
+<!-- /manual:increment -->
+
+### A.6 add-006 增量留档:应用内语法速查面板(2026-10-09 并入)
+
+<!-- manual:increment -->
+> 落点判定:自动判断并入本章——编辑器核心 UX 能力(与 add-002/add-005 同章先例);
+> chapter-02=自动保存、chapter-03=主题系统,无主题重合。纯前端,无新端点/事件(契约 0.3.0 → 0.3.1)。
+
+**能力:**
+
+- 应用内模态速查浮层:六域条目(Markdown 基础 / GFM 扩展 / 数学 KaTeX / mermaid / PlantUML / kUML,共 28 条),「名称 + 语法示例 + 一句话说明」,内容打包内置离线可用;
+- 入口三路:**F1**(HomeView 全局按键)/ 标题栏「?速查」按钮 / 编辑器右键菜单「语法速查 (F1)」;
+- 关键词过滤(title/description/snippet 大小写不敏感包含)+ 空态提示;
+- 条目级一键复制(复用 `writeClipboard`),成功/失败按钮反馈;v1 只读速查,不自动插入编辑器(不碰撤销栈);
+- 可达性:role=dialog、打开聚焦搜索框、Tab 焦点陷阱、Esc 关闭焦点归还;浮层仅拦截 F1/Esc/Tab,其余全局快捷键行为不变;遮罩点击关闭(与 ContextMenu 惯例一致);
+- kUML 条目只用官方 README 验证过的 Kotlin DSL 构造(数据测试含防臆造哨兵);渲染需本机 kuml CLI。
+
+**新模块:** `src/data/syntaxCheatsheet.ts`(内容)、`src/composables/useSyntaxCheatsheet.ts`(模块级开关+焦点归还)、`src/components/SyntaxCheatsheetModal.vue`;接线 HomeView/TitleBar/main.ts。
+细则见 `.qiling/planning/context/event-flow.md`「语法速查面板约定(add-006)」。
+<!-- /manual:increment -->
+
 ---
 
 ## 附录 B · 与上一章节对比
@@ -393,3 +436,5 @@ events: 0
 |------|------|------|
 | 2026-09-28T06:35:34.848Z | 自动生成 | 由 `/ql-scan` 初始化,基线 commit `d0a7a533` |
 | 2026-09-28 | fix(bugfix-003) | 文档链接跳转命中已打开的未保存文件 → 进冲突安全网而非静默覆盖(6db9b3f;评审 approved) |
+| 2026-10-09 | add(add-005) | kUML 图表语法支持:新端点 /ipc/render-kuml + 客户端渲染/缓存/SVG 清洗(契约 0.2.2→0.3.0;评审 approved,0 critical) |
+| 2026-10-09 | add(add-006) | 应用内语法速查面板:F1/标题栏/右键菜单三入口,六域 28 条 + 搜索 + 一键复制(纯前端,契约 0.3.1;评审 approved,0 critical) |
