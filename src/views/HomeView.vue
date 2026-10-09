@@ -8,8 +8,10 @@ import EditorPane from '@/components/EditorPane.vue'
 import PreviewPane from '@/components/PreviewPane.vue'
 import TitleBar from '@/components/TitleBar.vue'
 import AutoSaveBanner from '@/components/AutoSaveBanner.vue'
+import SyntaxCheatsheetModal from '@/components/SyntaxCheatsheetModal.vue'
 import { useEditorScrollSync } from '@/composables/useEditorScrollSync'
 import { useAutoSave } from '@/composables/useAutoSave'
+import { useSyntaxCheatsheet } from '@/composables/useSyntaxCheatsheet'
 import { takeStartupOpenPath } from '@/services/startupOpen'
 
 const router = useRouter()
@@ -58,8 +60,18 @@ useAutoSave()
  *   Ctrl+1/2/3     - 视图切换（编辑/双栏/预览）
  *   Ctrl+B         - 切换目录栏
  *   Ctrl+,         - 打开设置
+ *   F1             - 语法速查浮层开关
  */
+const cheatsheet = useSyntaxCheatsheet()
+
 function onKeyDown(e: KeyboardEvent) {
+  // F1 不带修饰键,必须在 ctrl 判定之前处理;速查浮层只拦截 F1/Esc/Tab,
+  // 其余快捷键在浮层打开时行为不变。
+  if (e.key === 'F1') {
+    e.preventDefault()
+    cheatsheet.toggleSheet()
+    return
+  }
   const ctrl = e.ctrlKey || e.metaKey
   if (!ctrl) return
   const k = e.key.toLowerCase()
@@ -161,6 +173,8 @@ onBeforeUnmount(() => {
         </div>
       </main>
     </div>
+    <!-- 语法速查浮层(add-006):开关状态在模块级组合式里,F1/标题栏/右键菜单三路共用 -->
+    <SyntaxCheatsheetModal />
   </div>
 </template>
 

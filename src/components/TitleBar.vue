@@ -3,10 +3,13 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore, type ViewMode } from '@/stores/settings'
+import { useSyntaxCheatsheet } from '@/composables/useSyntaxCheatsheet'
 
 const router = useRouter()
 const workspace = useWorkspaceStore()
 const settings = useSettingsStore()
+// 语法速查浮层(add-006):与 F1、编辑器右键菜单共用同一开关状态
+const cheatsheet = useSyntaxCheatsheet()
 
 const title = computed(() => {
   const tab = workspace.activeTab
@@ -125,6 +128,15 @@ function openSettings() {
         title="另存为 (Ctrl+Shift+S)"
       >
         另存为
+      </button>
+      <button
+        type="button"
+        @click="cheatsheet.openSheet()"
+        data-testid="open-cheatsheet"
+        title="语法速查 (F1)"
+        aria-label="语法速查"
+      >
+        ?速查
       </button>
       <button
         type="button"
