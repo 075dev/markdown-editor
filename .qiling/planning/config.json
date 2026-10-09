@@ -7,6 +7,7 @@
     "fail_fast": false,
     "fallback_to_sequential": true,
     "wave_timeout_minutes": 30,
-    "worker_timeout_minutes": 10
+    "worker_timeout_minutes": 10,
+    "inline_threshold": 2
   }
 }

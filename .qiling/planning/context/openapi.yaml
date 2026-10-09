@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: markdown-editor
-  version: 0.2.2
+  version: 0.3.1
   description: |
     本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
 
@@ -29,6 +29,8 @@ info:
     - Q: 工作区文件树读取(add/bugfix-004)受限? → A: capabilities 的 fs:scope 静态白名单外的工作区经新命令 allow_workspace_dir 运行时递归放行(fs_scope().allow_directory),chooseWorkspace 在读目录前调用(2026-09-28)
     - Q: 正文染色主题(add-003)如何实现? → A: 纯前端——新增 contentTheme 偏好(follow/paper/sepia/parchment/night,默认 follow),经 <html data-content-theme> 承载内容语义变量层(--content-*),仅作用于预览区正文;follow = 映射现有 UI 主题 token;无新端点/事件(2026-09-28)
     - Q: 语法染色主题(add-004)如何实现? → A: 纯前端——新增 syntaxTheme 偏好(follow/rainbow/academic/mono,默认 follow),经 <html data-syntax-theme> 承载语法语义变量层(--syntax-* 12 变量:h1-h6/行内代码/粗体/斜体/删除线/链接/列表),同一套变量同时驱动编辑器源码高亮(cm-md-* class)与预览渲染元素;围栏代码块不属本层;follow = 映射 content/UI token(与现状恒等);无新端点/事件(2026-09-28)
+    - Q: kUML 支持(add-005)如何接入? → A: 新端点 /ipc/render-kuml(Rust 探测 PATH 中 kuml CLI,临时 .kuml.kts + `kuml render --format svg`)。渲染走 mermaid 模式:管线输出源码块,PreviewPane 客户端异步调用换 SVG(经零依赖 DOMParser 清洗后注入);CLI 未安装(KUML_NOT_FOUND)或渲染失败(KUML_RENDER_FAILED)一律保留源码块 + 提示,不阻断编辑。Web 模式跳过。无新事件(2026-10-09)
+    - Q: 语法速查面板(add-006)如何实现? → A: 纯前端——应用内模态速查浮层(F1 / 标题栏按钮 / 编辑器右键菜单三入口),内置 Markdown/GFM/数学(KaTeX)/mermaid/plantuml/kuml 六域条目(名称+示例+一句话说明),关键词过滤 + 一键复制(复用 writeClipboard);内容打包离线可用,不改编辑器状态、不碰撤销栈;无新端点/事件(2026-10-09)
 
 servers:
   - url: tauri://ipc
@@ -40,7 +42,7 @@ tags:
   - name: Workspace
     description: 工作区目录浏览
   - name: View
-    description: 图表窗口、字体、PlantUML 配置
+    description: 图表窗口、图表渲染(kUML)、字体、PlantUML 配置
 
 paths:
   # ================= 文件 IO =================
@@ -287,6 +289,45 @@ paths:
                       - { type: string, format: uri }
                       - type: 'null'
 
+  /ipc/render-kuml:
+    post:
+      tags: [View]
+      summary: 渲染 kUML DSL 源码为 SVG(https://kuml.dev,Kotlin DSL)
+      description: |
+        Rust 侧探测 PATH 中的 kuml CLI(choco install kuml 自带 Java 21),
+        把 source 写入临时 .kuml.kts 后执行 `kuml render <file> --format svg`,
+        读取产出 SVG 返回(优先输出文件 <stem>.svg,兜底 stdout 中的 <svg 文档)。
+        无状态:每次调用独立执行,不驻留子进程;kuml 冷启动(JVM + Kotlin 脚本)
+        通常 2-5s,调用方(PreviewPane)须按源码哈希缓存渲染结果。
+        超时上限 60s,超时计入 KUML_RENDER_FAILED。
+        前端行为(缓存、SVG 清洗、降级)见 event-flow.md add-005 节。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source]
+              properties:
+                source:
+                  type: string
+                  minLength: 1
+                  description: kUML DSL 源码(Kotlin 脚本,围栏代码块 ```kuml 内容)
+      responses:
+        '200':
+          description: 渲染产出的 SVG 文档字符串
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [svg]
+                properties:
+                  svg:
+                    type: string
+                    description: 以 <svg 开头的完整 SVG 文档(调用方须清洗后注入 DOM)
+        '500': { $ref: '#/components/responses/KumlRenderFailed' }
+        '503': { $ref: '#/components/responses/KumlNotFound' }
+
   # ================= 文档链接(add-002) =================
 
   /ipc/open-external:
@@ -397,6 +438,8 @@ components:
             - WINDOW_OPEN_FAILED
             - UNSUPPORTED_PROTOCOL
             - OPEN_EXTERNAL_FAILED
+            - KUML_NOT_FOUND
+            - KUML_RENDER_FAILED
             - INTERNAL_ERROR
         message: { type: string }
         details:
@@ -441,6 +484,16 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     OpenExternalFailed:
       description: 系统默认程序调用失败
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    KumlNotFound:
+      description: kuml CLI 未安装(PATH 探测不到);前端保留源码块 + 安装提示
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    KumlRenderFailed:
+      description: kUML 渲染失败(脚本错误/输出缺失/超时 60s)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

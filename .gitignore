@@ -38,3 +38,5 @@ src-tauri/gen
 # Test
 coverage
 .vitest-cache
+.qiling/planning-backups/
+

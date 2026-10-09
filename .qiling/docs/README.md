@@ -28,10 +28,10 @@
 
 | 维度 | 数量 | 明细位置 |
 |------|------|----------|
-| API 端点(合计) | 9 | 各章节 §三 使用说明 |
+| API 端点(合计) | 10 | 各章节 §三 使用说明 |
 | 事件(合计) | 1 | 同上 |
 
-> 合计口径:各章 frontmatter `endpoints`/`events` 之和 = **章节留档覆盖数**。单一可信源 `openapi.yaml`(v0.2.0)共声明 **12** 个 `/ipc` 端点:9 个见第 02 章、1 个见第 01 章附录 A.4(add-002 增量 `open-external`);`list-system-fonts` 与 `get-plantuml-server-url` 已在契约声明,交付章留档待补(见路径清单)。
+> 合计口径:各章 frontmatter `endpoints`/`events` 之和 = **章节留档覆盖数**。单一可信源 `openapi.yaml`(v0.3.1)共声明 **13** 个 `/ipc` 端点:9 个见第 02 章、1 个见第 01 章附录 A.4(add-002 增量 `open-external`)、1 个见第 01 章附录 A.5(add-005 增量 `render-kuml`);`list-system-fonts` 与 `get-plantuml-server-url` 已在契约声明,交付章留档待补(见路径清单)。
 
 ### 路径清单(跨章节去重,/ql-doc 章节累积后填)
 
@@ -47,6 +47,7 @@
 | POST | `/ipc/list-directory` | [第 02 章](./chapters/chapter-02-autosave-conflict-net.md#11-端点清单) | 列目录(文件树) |
 | POST | `/ipc/open-diagram-window` | [第 02 章](./chapters/chapter-02-autosave-conflict-net.md#11-端点清单) | 图表独立窗口 |
 | POST | `/ipc/open-external` | [第 01 章 · 附录 A.4](./chapters/chapter-01-markdown-editor.md) | 用系统默认程序打开外部链接(协议白名单 http/https/mailto) |
+| POST | `/ipc/render-kuml` | [第 01 章 · 附录 A.5](./chapters/chapter-01-markdown-editor.md) | 渲染 kUML DSL 源码为 SVG(kuml CLI 探测 + 临时文件渲染,60s 超时) |
 | POST | `/ipc/list-system-fonts` | 待补(契约已声明) | 枚举系统字体(设置页字体选择) |
 | POST | `/ipc/get-plantuml-server-url` | 待补(契约已声明) | 读取 PlantUML 服务器地址配置 |
 
@@ -62,6 +63,8 @@
 | 500 | WINDOW_OPEN_FAILED | [第 02 章](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 窗口创建失败 |
 | 422 | UNSUPPORTED_PROTOCOL | [第 01 章 · 附录 A.4](./chapters/chapter-01-markdown-editor.md) | 协议不在 http/https/mailto 白名单 |
 | 500 | OPEN_EXTERNAL_FAILED | [第 01 章 · 附录 A.4](./chapters/chapter-01-markdown-editor.md) | 系统默认程序调用失败 |
+| 500 | KUML_RENDER_FAILED | [第 01 章 · 附录 A.5](./chapters/chapter-01-markdown-editor.md) | kUML 渲染失败(脚本错误/输出缺失/超时 60s) |
+| 503 | KUML_NOT_FOUND | [第 01 章 · 附录 A.5](./chapters/chapter-01-markdown-editor.md) | kuml CLI 未安装(PATH 探测不到) |
 | 500 | INTERNAL_ERROR | [第 02 章](./chapters/chapter-02-autosave-conflict-net.md#14-错误码参考) | 未分类内部错误 |
 
 ### 数据模型汇总(/ql-doc 章节累积后填)

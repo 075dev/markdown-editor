@@ -4,18 +4,18 @@ ql_state_version: '1.0'
 current_phase: '1_shipped'
 chapter_id: chapter-02
 docs_path: .qiling/docs/
-work_branch: ql/phase-1-autosave
+work_branch: ql/add-005-kuml
 base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
-status: shipped
+status: reviewed
 review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: PR #1 已合并至 main(merge ad7b38f)+ v0.2.0 发布(bugfix-005 关键修复,tag 30c1cea,Release 含 msi/setup/exe 三产物,2026-10-09)
+last_activity: add-006 应用内语法速查面板并入 chapter-01(F1/标题栏/右键菜单三入口,六域 28 条 + 搜索 + 复制,纯前端契约 0.3.1,380/380,评审 approved 0 critical,分支 ql/add-005-kuml 与 add-005 一并待交付,2026-10-09)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
-api_endpoints_count: 12
+api_endpoints_count: 13
 event_messages_count: 1
 ---
 # 项目状态
@@ -64,9 +64,12 @@ event_messages_count: 1
 - bugfix-002(2026-09-15): 安装后仅首次能打开、关闭后再也打不开 —— 状态 fixed,评审 approved(0 critical/0 major)。根因:自研 lockfile 单实例锁误判"句柄释放时 OS 删除文件",锁残留挡死二次启动。修复 7a3a53a:改 tauri-plugin-single-instance 2.4.4(OS 原生 mutex),顺带闭环 bugfix-001 遗留 N2(暖启动 argv 转发)。遗留 4 项 minor(emit 竞态/插件窗口期/测试锁定缺口/分隔符边缘)。详见 .planning/bugfix/002-single-instance-lock-stuck.md
 - bugfix-003(2026-09-28): 文档链接跳转把未保存内容覆盖为磁盘版本(目标为空文件时呈现为「跳转到空文档」)—— 状态 fixed,评审 approved(0 critical/3 non-critical)。根因:openFileFromPath 对已打开的 dirty 标签无条件 upsertTab 覆盖,违反冲突安全网原则;自动保存默认关闭放大触发面。修复 6db9b3f:guardDirtyTab 守卫(openFileFromPath + openFile 双入口),命中 dirty → conflict/modified 由用户决策;回归 PreviewPane.links-e2e.test.ts 6 例(全量 317/317),真机 CDP 终验通过。遗留:空文件跳转语境提示(UX)、newFile 对话框覆盖边缘(PRE-EXISTING)。详见 .planning/bugfix/003-link-jump-overwrites-unsaved.md
 - bugfix-004(2026-09-28): 白名单外位置的工作区,文件树(含子目录中的 MD 文件)整体索引失败 —— 状态 fixed,评审 skipped(ql-fix 流程)。根因:capabilities 的 fs:scope 只静态放行 $HOME 等四个固定位置,任意位置工作区在 plugin-fs readDir 被整体 forbidden 且异常被静默吞掉(read_file 为自定义 command 不走 scope,故打开单文件一直正常)。修复 c129e97:新增 allow_workspace_dir 命令(fs_scope().allow_directory 递归运行时授权),chooseWorkspace 读目录前调用;回归 workspace.tree-scope.test.ts 3 例(全量 320/320),真机 CDP 终验通过。遗留:allow_workspace_dir 未写入 openapi 契约(契约刷新时补)、文件树失败 UI 提示(DEFERRED)。详见 .planning/bugfix/004-workspace-fs-scope-forbidden.md
+- bugfix-005(2026-10-09): 文件关联双击/暖启动/链接跳转打开的文件无法保存(打开正常、保存恒 forbidden)—— 状态 fixed,评审 skipped(ql-fix 流程)。根因:这类文件不经对话框/chooseWorkspace 授权,plugin-fs writeTextFile 被 fs:scope 拒绝(read_file 自定义 command 不受限,形成"能开不能存"不对称)。修复 5fa1686:allow_workspace_dir 分支文件语义(fs_scope().allow_file)+ openFileFromPath 打开前 best-effort 授权;回归 workspace.open-scope.test.ts 2 例(全量 337/337),真机暖启动端到端终验通过。已随 v0.2.0 发布。遗留:saveTab/resolveConflictKeepMine 双重 normalizeError 降级码(DEFERRED)。详见 .qiling/planning/bugfix/005-file-open-scope-save-forbidden.md
 
 ## 功能追加(add)
 - add-001(2026-09-15): 六主题 + 全面视觉升级 → 新建 chapter-03,评审 approved(1 major 已修)。详见 .planning/add/001-theme-system.md
 - add-002(2026-09-21): 文档链接跳转 → 并入 chapter-01(§1.5),评审 approved(0 critical)。/ipc/open-external 新端点 + headingAnchors slug 插件 + 预览链接三分支路由(全分支 preventDefault);测试 235→311。遗留 4 minor DEFERRED。详见 .planning/add/002-doc-links.md
 - add-003(2026-09-28): 预览正文染色主题 → 并入 chapter-03(§1.5,用户确认落点),评审 approved(2 轮,首轮 1 critical 已修)。纯前端:contentTheme 偏好(follow/paper/sepia/parchment/night,默认 follow)+ --content-* 内容语义层(11 变量)+ 预览区元素切换 + 设置页下拉;契约 0.2.1(仅行为约定);测试 320→327。遗留:parchment blockquote 对比度按评审方案 #665a40 闭环。详见 .planning/add/003-content-theme.md
 - add-004(2026-09-28): markdown 语法染色主题 → 并入 chapter-03(§1.6,add-003 方向纠正后新增),评审 approved(2 轮,首轮 1 critical 已修)。纯前端:syntaxTheme 偏好(follow/rainbow/academic/mono,默认 follow)+ --syntax-* 语法语义层(12 变量,标题 1-6 级分色 + 行内代码/粗体/斜体/删除线/链接/列表)+ 编辑器源码高亮与预览渲染同驱动 + 设置页下拉;围栏代码块不属本层(:not(pre)>code 限定);契约 0.2.2(仅行为约定);测试 327→335。详见 .planning/add/004-syntax-theme.md
+- add-005(2026-10-09): kUML 图表语法支持(https://kuml.dev)→ 并入 chapter-01(附录 A.5,自动判断:预览渲染域),评审 approved(1 轮,0 critical / 5 non-critical,N1 sanitizer 加固已修)。新端点 /ipc/render-kuml(Rust 探测 kuml CLI + 临时 .kuml.kts + 60s 超时)+ mermaid 式客户端渲染(services/kuml.ts,FNV-1a 源码缓存,零依赖 DOMParser SVG 清洗)+ stripDiagramCode += kuml + PreviewPane 步骤 4;契约 0.2.2→0.3.0;测试 337→353 + cargo 17/17。发现既有缺陷:mermaid 选择器 pre.language-mermaid>code 对真实管线输出命中 0(静默失效,候选 bugfix-006)。真实 CLI 端到端待用户环境。详见 .qiling/planning/add/005-kuml-support.md
+- add-006(2026-10-09): 应用内语法速查面板 → 并入 chapter-01(附录 A.6,自动判断:编辑器核心 UX),评审 approved(1 轮,0 critical / 2 non-critical,N1 经官方 README 原文闭环、N2 文案已修)。纯前端:F1/标题栏「?速查」/右键菜单三入口,六域 28 条(Markdown/GFM/KaTeX/mermaid/plantuml/kUML,数据测试含 kUML 防臆造哨兵)+ 关键词过滤 + 一键复制(writeClipboard);role=dialog/焦点陷阱/Esc 归还,浮层仅拦 F1/Esc/Tab;契约 0.3.0→0.3.1(patch);测试 353→380。详见 .qiling/planning/add/006-syntax-cheatsheet.md
