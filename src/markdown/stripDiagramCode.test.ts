@@ -3,12 +3,22 @@ import { renderMarkdown } from '@/markdown/pipeline'
 import { isSkipLang } from '@/markdown/stripDiagramCode'
 
 describe('stripDiagramCode', () => {
-  it('mermaid / plantuml / puml 都标记为 skip', () => {
+  it('mermaid / plantuml / puml / kuml 都标记为 skip', () => {
     expect(isSkipLang('mermaid')).toBe(true)
     expect(isSkipLang('plantuml')).toBe(true)
     expect(isSkipLang('puml')).toBe(true)
+    expect(isSkipLang('kuml')).toBe(true)
     expect(isSkipLang('javascript')).toBe(false)
     expect(isSkipLang('text')).toBe(false)
+  })
+
+  it('kuml 代码块走完 pipeline：内部 code 保留源码，shiki 不染指', async () => {
+    const md = ['```kuml', 'Diagram:', '  A -> B', '```'].join('\n')
+    const html = await renderMarkdown(md)
+    expect(html).toContain('Diagram:')
+    expect(html).toContain('A -> B')
+    expect(html).toContain('language-kuml')
+    expect(html).not.toContain('plantuml-container')
   })
 
   it('mermaid 代码块走完 pipeline：内部 code 保留源码，shiki 不染指', async () => {

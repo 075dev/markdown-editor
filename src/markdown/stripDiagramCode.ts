@@ -1,6 +1,6 @@
 /**
  * 预处理 rehype plugin：
- *   在 shiki 高亮之前，把 <pre><code class="language-mermaid|language-plantuml|language-puml">
+ *   在 shiki 高亮之前，把 <pre><code class="language-mermaid|language-plantuml|language-puml|language-kuml">
  *   替换为「保留源码的 pre + 纯文本 code」。
  *
  * 为何要有这个插件：
@@ -19,7 +19,7 @@ import { visit } from 'unist-util-visit'
 import type { Plugin } from 'unified'
 import type { Root, Element, ElementContent } from 'hast'
 
-const SKIP_LANGS = new Set(['mermaid', 'plantuml', 'puml'])
+const SKIP_LANGS = new Set(['mermaid', 'plantuml', 'puml', 'kuml'])
 
 /** 暴露给测试 / 调试 */
 export function isSkipLang(lang: string): boolean {
