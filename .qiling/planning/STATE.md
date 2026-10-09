@@ -6,12 +6,12 @@ chapter_id: chapter-02
 docs_path: .qiling/docs/
 work_branch: ql/add-005-kuml
 base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
-status: reviewed
+status: shipped
 review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: add-006 应用内语法速查面板并入 chapter-01(F1/标题栏/右键菜单三入口,六域 28 条 + 搜索 + 复制,纯前端契约 0.3.1,380/380,评审 approved 0 critical,分支 ql/add-005-kuml 与 add-005 一并待交付,2026-10-09)
+last_activity: add-005(kUML 图表支持)+ add-006(语法速查面板)shipped via PR #2(fa29827,契约 0.3.1,380/380 + cargo 17/17,双增量评审 approved 0 critical,待人工合并,2026-10-09)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
