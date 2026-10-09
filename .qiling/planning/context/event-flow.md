@@ -440,3 +440,17 @@ sequenceDiagram
 | 剪贴板写入失败(writeClipboard 非 ok) | 按钮短暂显示「复制失败」,源示例仍可见 |
 | 设置页/其他路由下按 F1 | 不弹速查(浮层仅编辑器路由 HomeView 挂载) |
 | 窄窗口 | 浮层限宽限高、内部滚动,不溢出视口 |
+
+### 速查内容扩充(add-007,纯内容,无行为变化)
+
+用户反馈「显示的语法示例太少」:条目 28 → **55**,UI/交互零变化。内容铁律:
+
+1. **只收编辑器渲染得出的语法**(remark-gfm/KaTeX/mermaid 11/PlantUML 标准集);
+   渲染不出的(如 `==高亮==`,remark-gfm 不支持)一律不收。
+2. **kUML 仅限官方验证构造**,三来源:GitHub README Quick Start(类图/枚举/关联
+   多重性聚合)、kuml.dev/llm(时序图 lifeline/message/reply)、官方 examples
+   kuml-getting-started.kuml.kts(C4:c4Model/person/softwareSystem/relationship/
+   systemContextDiagram,需 `import dev.kuml.c4.dsl.*`)。数据测试以「调用白名单」
+   哨兵固化:kUML snippet 中每个 `标识符(` 必须命中白名单集合。
+3. 各节条目下限(测试哨兵):markdown 17 / gfm 6 / 数学 12 / mermaid 8 / plantuml 7 /
+   kuml 5。

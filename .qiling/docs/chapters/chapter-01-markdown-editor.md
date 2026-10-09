@@ -399,6 +399,30 @@ events: 0
 细则见 `.qiling/planning/context/event-flow.md`「语法速查面板约定(add-006)」。
 <!-- /manual:increment -->
 
+### A.7 add-007 增量留档:速查内容扩充 28 → 55 条(2026-10-09 并入)
+
+<!-- manual:increment -->
+> 落点判定:add-006 同域续作(chapter-01),纯内容扩充,UI/交互零变化。契约 0.3.1 → 0.3.2(patch)。
+
+**内容铁律:**
+
+1. 只收编辑器渲染得出的语法(remark-gfm / KaTeX / mermaid 11 / PlantUML 标准集);渲染不出的不收(如 `==高亮==`);
+2. kUML 仅限官方验证构造,三来源:GitHub README Quick Start、kuml.dev/llm、官方 examples `kuml-getting-started.kuml.kts`;数据测试以「调用白名单」哨兵固化(18 构造,扫描前剥离字符串字面量)。
+
+**扩充清单(28 → 55):**
+
+| 节 | 条目 | 新增 |
+|----|------|------|
+| Markdown 基础 | 17 | 粗斜体、多级引用、嵌套列表、引用式链接、转义字符 |
+| GFM 扩展 | 6 | 裸网址自动链接 |
+| 数学(KaTeX) | 12 | 上下标、分数、根号、求和/积分/极限、希腊字母、矩阵、自适应定界符、多行对齐、方程组、公式内文字 |
+| mermaid | 8 | 状态图、ER 图、饼图、甘特图、思维导图 |
+| PlantUML | 7 | 活动图、状态图、注释、生命线激活 |
+| kUML | 5 | 关联修饰(多重性/聚合)、时序图、C4 系统上下文(需 import) |
+
+**已知限制(DEFERRED):** KaTeX 渲染管线尚未接线(README 路线图 Phase 3 的数学公式支持),数学节条目当前展示语法但预览不渲染公式(继承自 add-006 的域声明,待数学公式 add 立项)。
+<!-- /manual:increment -->
+
 ---
 
 ## 附录 B · 与上一章节对比
@@ -438,3 +462,4 @@ events: 0
 | 2026-09-28 | fix(bugfix-003) | 文档链接跳转命中已打开的未保存文件 → 进冲突安全网而非静默覆盖(6db9b3f;评审 approved) |
 | 2026-10-09 | add(add-005) | kUML 图表语法支持:新端点 /ipc/render-kuml + 客户端渲染/缓存/SVG 清洗(契约 0.2.2→0.3.0;评审 approved,0 critical) |
 | 2026-10-09 | add(add-006) | 应用内语法速查面板:F1/标题栏/右键菜单三入口,六域 28 条 + 搜索 + 一键复制(纯前端,契约 0.3.1;评审 approved,0 critical) |
+| 2026-10-09 | add(add-007) | 速查内容扩充 28 → 55 条(kUML 仅官方验证构造,白名单哨兵;契约 0.3.2;评审 2 轮 approved,首轮 1 critical 已修) |

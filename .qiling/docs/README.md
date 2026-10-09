@@ -31,7 +31,7 @@
 | API 端点(合计) | 10 | 各章节 §三 使用说明 |
 | 事件(合计) | 1 | 同上 |
 
-> 合计口径:各章 frontmatter `endpoints`/`events` 之和 = **章节留档覆盖数**。单一可信源 `openapi.yaml`(v0.3.1)共声明 **13** 个 `/ipc` 端点:9 个见第 02 章、1 个见第 01 章附录 A.4(add-002 增量 `open-external`)、1 个见第 01 章附录 A.5(add-005 增量 `render-kuml`);`list-system-fonts` 与 `get-plantuml-server-url` 已在契约声明,交付章留档待补(见路径清单)。
+> 合计口径:各章 frontmatter `endpoints`/`events` 之和 = **章节留档覆盖数**。单一可信源 `openapi.yaml`(v0.3.2)共声明 **13** 个 `/ipc` 端点:9 个见第 02 章、1 个见第 01 章附录 A.4(add-002 增量 `open-external`)、1 个见第 01 章附录 A.5(add-005 增量 `render-kuml`);`list-system-fonts` 与 `get-plantuml-server-url` 已在契约声明,交付章留档待补(见路径清单)。
 
 ### 路径清单(跨章节去重,/ql-doc 章节累积后填)
 
