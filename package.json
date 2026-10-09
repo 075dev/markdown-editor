@@ -1,7 +1,7 @@
 {
   "name": "markdown-editor",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "A local-first Markdown editor built with Tauri 2 + Vue 3 + CodeMirror 6.",
   "scripts": {
