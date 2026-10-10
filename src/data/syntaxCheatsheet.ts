@@ -1,19 +1,25 @@
 /**
- * 应用内语法速查面板(add-006,add-007 扩充)的内容数据。
+ * 应用内语法速查面板(add-006 建立,add-007 / add-008 扩充)的内容数据。
  *
  * 设计要点:
  *   - 纯静态数据,打包内置,离线可用;不读文件、不发请求。
  *   - 六节与编辑器支持的语法域一一对应:Markdown 基础 / GFM 扩展 /
- *     数学(KaTeX) / mermaid / PlantUML / kUML,共 55 条。
+ *     数学(KaTeX) / mermaid / PlantUML / kUML,共 97 条(add-008)。
  *   - 只收录编辑器渲染得出的语法(remark-gfm / KaTeX / mermaid 11 /
  *     PlantUML 标准集);渲染不出的一律不收(如 ==高亮==,remark-gfm 不支持)。
  *   - snippet 是「用户可直接照抄进编辑器」的完整示例文本:
  *     围栏类示例(mermaid)自带 ``` 围栏;@startuml / Kotlin DSL 类
  *     示例是裸源码,由编辑器的图表识别逻辑接管。
- *   - kUML 节只收官方验证构造,三来源:GitHub README Quick Start
+ *   - add-008 新增条目全部实证后才收录:mermaid 候选逐条通过
+ *     mermaid.parse 探针(其中 quadrantChart / requirementDiagram /
+ *     xychart-beta 的中文文本必须引号包裹才可解析),PlantUML 候选
+ *     逐条经官方渲染服务验证(简报中的「[任务] is N days」甘特写法
+ *     实测语法错误,已改用验证通过的 lasts/then/happens at)。
+ *   - kUML 节只收官方验证构造,四来源:GitHub README Quick Start
  *     (类图/枚举/关联多重性聚合)、kuml.dev/llm(时序图)、官方 examples
- *     kuml-getting-started.kuml.kts(C4,需 import);数据测试以
- *     「调用白名单」哨兵固化,禁止臆造其他 API。
+ *     kuml-getting-started.kuml.kts(C4,需 import)、docs/diagram-types.adoc
+ *     (状态/用例/组件/部署/活动图);数据测试以「调用白名单」哨兵固化,
+ *     禁止臆造其他 API。
  */
 
 export interface CheatEntry {
@@ -140,6 +146,36 @@ export const cheatSections: CheatSection[] = [
         description: '反斜杠让 Markdown 特殊字符按原样显示(* _ # ` 等)。',
         snippet: '\\*不是斜体\\*   \\# 不是标题   \\` 不是代码',
       },
+      {
+        id: 'md-indented-code',
+        title: '缩进代码块',
+        description: '每行前缩进 4 个空格即成代码块;日常写作更推荐围栏代码块,可标注语言且无需缩进。',
+        snippet: '普通段落\n\n    这一行缩进了 4 个空格\n    会原样显示为代码',
+      },
+      {
+        id: 'md-entities',
+        title: '实体引用',
+        description: 'HTML 实体可直接书写:&copy; 版权符号、&amp; 与符号、&lt; 小于号、&rarr; 右箭头。',
+        snippet: '&copy; 2026   A &amp; B   a &lt; b   前进 &rarr;',
+      },
+      {
+        id: 'md-double-backtick',
+        title: '双反引号行内代码',
+        description: '代码内容本身含反引号时,外层改用双反引号包裹;单反引号包不住内含反引号的内容。',
+        snippet: '`` `code` `` 会原样显示出成对的反引号',
+      },
+      {
+        id: 'md-closing-heading',
+        title: '标题闭合',
+        description: '标题可用若干 # 闭合,如 ## 标题 ##;闭合 # 前要有空格,且不会渲染出来。',
+        snippet: '## 二级标题 ##\n### 三级标题 ###',
+      },
+      {
+        id: 'md-backslash-break',
+        title: '反斜杠硬换行',
+        description: '行尾单个反斜杠与行尾两个空格等效,同样产生硬换行;反斜杠可见,比空格更好察觉。',
+        snippet: '第一行行尾是反斜杠\\\n第二行紧贴上一行',
+      },
     ],
   },
   {
@@ -181,6 +217,20 @@ export const cheatSections: CheatSection[] = [
         title: '脚注',
         description: '正文里用 [^名字] 标记,脚注内容单独一行写在文末。',
         snippet: '这里有一个脚注[^1]\n\n[^1]: 脚注内容写在文末',
+      },
+      {
+        id: 'gfm-email-autolink',
+        title: '邮箱自动链接',
+        description: '尖括号包裹邮箱地址,渲染为可直接点击的 mailto 链接。',
+        snippet: '反馈请发 <user@example.com>',
+      },
+      {
+        id: 'gfm-table-inline',
+        title: '表格单元格内联格式',
+        description:
+          '单元格内可继续使用 **粗体**、`代码`、[链接]() 等行内格式;内容本身含竖线时写成 &#124;,代码内的竖线则用 \\| 转义。',
+        snippet:
+          '| 命令 | 说明 |\n| --- | --- |\n| `npm test` | **运行测试**,详见 [文档](https://example.com) |\n| `a \\| b` | 竖线写成 &#124; |',
       },
     ],
   },
@@ -260,6 +310,106 @@ export const cheatSections: CheatSection[] = [
         description: '\\text{...} 在公式里插入正体文字,中文也可用。',
         snippet: '$\\text{速度} = \\frac{\\text{路程}}{\\text{时间}}$',
       },
+      {
+        id: 'math-operators',
+        title: '运算符',
+        description: '乘除、加减号、点乘与张量积等运算符用专用命令,渲染出的间距更规范。',
+        snippet: '$\\times \\div \\pm \\mp$  $\\cdot \\circ \\ast \\star$  $\\otimes \\oplus$',
+      },
+      {
+        id: 'math-relations',
+        title: '关系符',
+        description: '不等、约等、同余、正比等关系符都有专用命令,不要用文本字符凑。',
+        snippet: '$\\ne \\le \\ge$  $\\ll \\gg \\approx$  $\\equiv \\sim \\propto \\cong$',
+      },
+      {
+        id: 'math-arrows',
+        title: '箭头',
+        description: '单线与双线箭头成对出现;\\mapsto 表示「映到」,\\hookrightarrow 是带钩嵌入箭头。',
+        snippet: '$\\rightarrow \\leftarrow$  $\\Rightarrow \\Leftarrow \\Leftrightarrow$  $\\mapsto \\hookrightarrow$',
+      },
+      {
+        id: 'math-logic-sets',
+        title: '逻辑与集合',
+        description: '量词、逻辑连接词与集合关系、集合运算符号。',
+        snippet: '$\\forall \\exists \\neg \\land \\lor$  $\\in \\notin \\subset \\subseteq$  $\\cup \\cap \\emptyset \\setminus$',
+      },
+      {
+        id: 'math-calculus-symbols',
+        title: '微积分与物理常用符号',
+        description: '无穷、偏微分、梯度算子与物理常用字母。',
+        snippet: '$\\infty \\partial \\nabla$  $\\hbar \\ell$  $\\Re \\Im \\aleph$',
+      },
+      {
+        id: 'math-big-operators',
+        title: '大运算符',
+        description: '求积与并、交、直和等大运算符,块级公式中上下限自动置于符号正上下方。',
+        snippet:
+          '$$\\prod_{i=1}^{n} a_i \\quad \\coprod_{i=1}^{n} a_i$$\n$$\\bigcup_{k=1}^{n} U_k \\quad \\bigcap_{k=1}^{n} U_k$$\n$$\\bigoplus_{k=1}^{n} V_k \\quad \\bigotimes_{k=1}^{n} V_k$$',
+      },
+      {
+        id: 'math-integrals',
+        title: '积分族',
+        description: '二重、三重与环路积分,上下限写法与单积分一致。',
+        snippet: '$$\\iint_D f\\,dA \\quad \\iiint_V f\\,dV \\quad \\oint_C \\vec{F} \\cdot d\\vec{r}$$',
+      },
+      {
+        id: 'math-binomial',
+        title: '二项式与组合数',
+        description: '\\binom{n}{k} 随环境自适应大小;\\tbinom 文字尺寸、\\dbinom 显示尺寸。',
+        snippet: '$\\binom{n}{k}$  $\\tbinom{n}{k}$  $\\dbinom{n}{k}$',
+      },
+      {
+        id: 'math-over-under',
+        title: '上下放置',
+        description: '\\overset 把内容放到符号上方、\\underset 放到下方;\\stackrel 常用于在箭头上标注条件。',
+        snippet: '$\\overset{\\text{def}}{=} x$  $\\underset{x \\to 0}{\\lim} f(x)$  $A \\stackrel{f}{\\rightarrow} B$',
+      },
+      {
+        id: 'math-ext-arrows',
+        title: '可延伸箭头标注',
+        description: '\\xrightarrow / \\xleftarrow 的箭杆随上方文字自动加长,可选参数 [ ] 写下方标注。',
+        snippet: '$A \\xrightarrow{n} B$  $C \\xleftarrow[m]{n} D$',
+      },
+      {
+        id: 'math-accents',
+        title: '重音装饰',
+        description: '单字符重音用 \\hat \\bar \\vec \\dot \\ddot \\tilde;跨多字符用 \\widehat \\overline \\underline。',
+        snippet: '$\\hat x \\bar x \\vec x$  $\\dot x \\ddot x \\tilde x$  $\\widehat{ABC} \\overline{AB} \\underline{AB}$',
+      },
+      {
+        id: 'math-braces',
+        title: '花括号结构',
+        description: '\\overbrace 在内容上方画大括号并用 ^ 加说明,\\underbrace 在下方画并用 _ 加说明。',
+        snippet: '$$\\overbrace{a+b+c}^{\\text{和}} \\qquad \\underbrace{a+b+c}_{\\text{三项}}$$',
+      },
+      {
+        id: 'math-fonts',
+        title: '字体族',
+        description:
+          '字体族命令切换字母风格:\\mathrm 正体、\\mathbf 粗体、\\mathbb 空心、\\mathcal 花体、\\mathfrak 哥特体等。',
+        snippet: '$\\mathrm{d}x \\quad \\mathbf{v} \\mathit{xy}$  $\\mathbb{R} \\mathcal{L} \\mathfrak{g}$  $\\mathsf{s} \\mathtt{t}$',
+      },
+      {
+        id: 'math-color',
+        title: '颜色',
+        description: '\\textcolor{颜色}{内容} 只给指定内容上色,\\color{颜色} 使其后内容全部变色。',
+        snippet: '$\\textcolor{red}{x} + \\textcolor{blue}{y}$  {\\color{green} z = w}',
+      },
+      {
+        id: 'math-spacing',
+        title: '间距与省略号',
+        description:
+          '\\quad \\qquad 是大间距,\\, \\: \\; 由小到大;省略号 \\cdots 居中、\\ldots 靠底、\\vdots 竖排、\\ddots 斜排。',
+        snippet: '$a \\, b \\: c \\; d \\quad e \\qquad f$  $\\cdots \\ldots \\vdots \\ddots$',
+      },
+      {
+        id: 'math-mod-norm',
+        title: '模与范数',
+        description:
+          '\\bmod 余数算符、\\pmod{n} 带括号同余;\\lVert \\rVert 范数、\\langle \\rangle 内积、\\lvert \\rvert 绝对值。',
+        snippet: '$a \\bmod n$  $x \\equiv y \\pmod{n}$  $\\lVert x \\rVert \\quad \\langle x, y \\rangle \\quad \\lvert x \\rvert$',
+      },
     ],
   },
   {
@@ -314,6 +464,64 @@ export const cheatSections: CheatSection[] = [
         description: '纯缩进表达层级;root((文字)) 是中心圆形节点,节点形状另支持 [方形]、{{六边形}} 等。',
         snippet: '```mermaid\nmindmap\n  root((Markdown))\n    基础语法\n      标题\n      列表\n    扩展\n      图表\n      公式\n```',
       },
+      {
+        id: 'mermaid-journey',
+        title: '旅程图',
+        description: 'journey 按 section 分组,每行「任务: 满意度: 参与者」,满意度 0-5,冒号后可列多个参与者。',
+        snippet:
+          '```mermaid\njourney\n    title 写作旅程\n    section 打开文档\n      启动应用: 5: 用户\n      打开文件: 4: 用户, 编辑器\n    section 编辑保存\n      编写内容: 3: 用户\n      自动保存: 5: 编辑器\n```',
+      },
+      {
+        id: 'mermaid-quadrant',
+        title: '象限图',
+        description:
+          'quadrantChart 定义 x/y 轴与四个象限(1 右上、2 左上、3 左下、4 右下),数据点写「名称: [x, y]」;轴、象限与数据点等中文文本必须用引号包裹。',
+        snippet:
+          '```mermaid\nquadrantChart\n    title "功能优先级"\n    x-axis "低紧急" --> "高紧急"\n    y-axis "低重要" --> "高重要"\n    quadrant-1 "立即做"\n    quadrant-2 "计划做"\n    quadrant-3 "少做"\n    quadrant-4 "委托做"\n    "语法速查": [0.3, 0.6]\n    "图表渲染": [0.8, 0.9]\n```',
+      },
+      {
+        id: 'mermaid-requirement',
+        title: '需求图',
+        description:
+          'requirement 块声明 id/text/risk/verifymethod,element 声明被测对象,「元素 - satisfies -> 需求」表达满足关系;text 等文本值用引号包裹。',
+        snippet:
+          '```mermaid\nrequirementDiagram\n    requirement req_login {\n        id: 1\n        text: "用户可以登录系统"\n        risk: low\n        verifymethod: inspection\n    }\n    element login_page {\n        type: "页面"\n    }\n    login_page - satisfies -> req_login\n```',
+      },
+      {
+        id: 'mermaid-gitgraph',
+        title: 'Git 提交图',
+        description:
+          'gitGraph 用 commit / branch / checkout / merge 演示分支模型;合并前先 checkout 目标分支,commit 可用 id 加注说明。',
+        snippet:
+          '```mermaid\ngitGraph\n    commit id: "init"\n    branch develop\n    checkout develop\n    commit id: "feat"\n    checkout main\n    merge develop\n    commit id: "release"\n```',
+      },
+      {
+        id: 'mermaid-timeline',
+        title: '时间线',
+        description: 'timeline 按 section 分组,每行「时期 : 事件1 : 事件2」纵向铺开,冒号两侧留空格。',
+        snippet:
+          '```mermaid\ntimeline\n    title 项目里程碑\n    section 2026 年\n        10 月 : 需求确认 : 骨架搭建\n        11 月 : 功能填充\n    section 2027 年\n        1 月 : 正式发布\n```',
+      },
+      {
+        id: 'mermaid-c4',
+        title: 'C4 上下文图',
+        description: 'C4Context 用 Person / System 声明角色与系统,Rel 建立关系;括号内依次是别名、显示名、描述。',
+        snippet:
+          '```mermaid\nC4Context\n    title 系统上下文\n    Person(customer, "客户", "使用编辑器的人")\n    System(editor, "Markdown 编辑器", "本地优先的写作工具")\n    Rel(customer, editor, "撰写文档")\n```',
+      },
+      {
+        id: 'mermaid-sankey',
+        title: '桑基图(beta)',
+        description: 'sankey-beta 每行「源,目标,数值」构成一条流量,同名节点自动合并;属 beta 渲染器,可定制样式有限。',
+        snippet: '```mermaid\nsankey-beta\nMarkdown,mermaid,5\nMarkdown,KaTeX,3\nPlantUML,kUML,2\n```',
+      },
+      {
+        id: 'mermaid-xychart',
+        title: '柱状 / 折线图(beta)',
+        description: 'xychart-beta 先声明 x 轴类目与 y 轴范围,再用 bar 画柱状系列(line 画折线);类目文本用引号包裹。',
+        snippet:
+          '```mermaid\nxychart-beta\n    title "每周提交数"\n    x-axis ["周一", "周二", "周三", "周四", "周五"]\n    y-axis "提交数" 0 --> 20\n    bar [5, 9, 7, 12, 4]\n```',
+      },
     ],
   },
   {
@@ -362,6 +570,45 @@ export const cheatSections: CheatSection[] = [
         description: 'activate / deactivate 在时序图上表达「处理中」的激活粗条。',
         snippet: '@startuml\nA -> B: 请求\nactivate B\nB -> B: 内部处理\nB --> A: 响应\ndeactivate B\n@enduml',
       },
+      {
+        id: 'puml-object',
+        title: '对象图',
+        description: 'object 声明对象实例并直接列字段,对象之间用箭头表达指向关系。',
+        snippet: '@startuml\nobject 用户 {\n  name: String\n}\nobject 订单\n用户 --> 订单\n@enduml',
+      },
+      {
+        id: 'puml-component',
+        title: '组件图',
+        description: 'package 分层收纳 component 与 interface,..> 是依赖方向的虚线箭头。',
+        snippet:
+          '@startuml\npackage "分层" {\n  component "Web UI"\n  interface "API"\n  component "服务"\n}\n"Web UI" ..> "API"\n"API" ..> "服务"\n@enduml',
+      },
+      {
+        id: 'puml-deployment',
+        title: '部署图',
+        description: 'node 可层层嵌套表达部署层级,最内层放 artifact 制品;cloud 表示外部云服务。',
+        snippet: '@startuml\nnode "云" {\n  node "服务器" {\n    artifact app.jar\n  }\n}\ncloud "对象存储"\n@enduml',
+      },
+      {
+        id: 'puml-wbs',
+        title: 'WBS 工作分解',
+        description: '@startwbs / @endwbs 专用围栏;* 是根节点,星号逐层加一个表示下一级,同级星号数相同。',
+        snippet: '@startwbs\n* 项目\n** 需求\n** 开发\n*** 前端\n*** 后端\n** 测试\n@endwbs',
+      },
+      {
+        id: 'puml-gantt',
+        title: '甘特图',
+        description:
+          '@startgantt 中 [任务] lasts N days 声明耗时,then 表示接续上一任务,-- 文字 -- 作分组分隔线,happens at 指定里程碑时点。',
+        snippet:
+          '@startgantt\n[设计] lasts 10 days\nthen [开发] lasts 14 days\n-- 里程碑 --\n[发布] happens at [开发]\'s end\n@endgantt',
+      },
+      {
+        id: 'puml-mindmap',
+        title: '思维导图',
+        description: '@startmindmap / @endmindmap 专用围栏;* 根节点,星号逐层加深;分支默认画在右侧,left side 行之后画在左侧;节点加 _(如 **_)为无边框样式。',
+        snippet: '@startmindmap\n* Markdown\n** 基础\n*** 标题\n*** 列表\nleft side\n** 设计\n**_ 图标\n@endmindmap',
+      },
     ],
   },
   {
@@ -407,6 +654,46 @@ export const cheatSections: CheatSection[] = [
           'C4 构造需要第一行 import;c4Model 内声明 person / softwareSystem 并用 relationship 连接,systemContextDiagram 的 include 选择入图元素(官方示例)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
         snippet:
           'import dev.kuml.c4.dsl.*\n\nc4Model(name = "Shop") {\n    val customer = person(name = "Customer") {\n        description = "A shopper"\n    }\n    val shop = softwareSystem(name = "Shop System") {\n        description = "Lets customers browse and order"\n    }\n    relationship(source = customer, target = shop) { technology = "HTTPS" }\n\n    systemContextDiagram(name = "Shop — System Context") {\n        include(customer, shop)\n    }\n}',
+      },
+      {
+        id: 'kuml-state',
+        title: '状态图',
+        description:
+          'stateDiagram 内 state 声明状态,initial() / final() 是起止伪状态,goesTo 中缀连接并可用 on "事件" 标注触发(docs/diagram-types.adoc)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
+        snippet:
+          'stateDiagram(name = "Order Lifecycle") {\n    val draft = state(name = "Draft")\n    val placed = state(name = "Placed")\n    val shipped = state(name = "Shipped")\n    initial() goesTo draft\n    draft goesTo placed on "submit"\n    placed goesTo shipped on "ship"\n    shipped goesTo final()\n}',
+      },
+      {
+        id: 'kuml-usecase',
+        title: '用例图',
+        description:
+          'useCaseDiagram 内 actor 与 useCase 声明参与者与用例,associates 表达参与关系,includes 表达用例包含(docs/diagram-types.adoc)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
+        snippet:
+          'useCaseDiagram(name = "Checkout") {\n    val customer = actor(name = "Customer")\n    val browse = useCase(name = "Browse Catalog")\n    val checkout = useCase(name = "Place Order")\n    val pay = useCase(name = "Pay")\n    customer associates browse\n    customer associates checkout\n    checkout includes pay\n}',
+      },
+      {
+        id: 'kuml-component',
+        title: '组件图',
+        description:
+          'componentDiagram 内 component 声明组件,dependsOn 中缀表达依赖方向,前者依赖后者(docs/diagram-types.adoc)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
+        snippet:
+          'componentDiagram(name = "Architecture") {\n    val web = component(name = "Web UI")\n    val api = component(name = "API Gateway")\n    val orders = component(name = "Orders Service")\n    web dependsOn api\n    api dependsOn orders\n}',
+      },
+      {
+        id: 'kuml-deployment',
+        title: '部署图',
+        description:
+          'deploymentDiagram 内 executionEnvironment / node / artifact 表达部署层级,device 是独立设备,communicationPath 连接两个部署端(docs/diagram-types.adoc)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
+        snippet:
+          'deploymentDiagram(name = "AWS — production") {\n    val vpc = executionEnvironment(name = "VPC eu-central-1") {\n        node(name = "EKS Cluster") {\n            artifact(name = "kuml-web.jar")\n        }\n    }\n    val db = device(name = "RDS PostgreSQL")\n    communicationPath(end1 = vpc, end2 = db)\n}',
+      },
+      {
+        id: 'kuml-activity',
+        title: '活动图',
+        description:
+          'activityDiagram 内 initialNode / action / decision / finalNode 声明节点,edge(from, to) 依次连边,guard 参数标注分支条件(docs/diagram-types.adoc)。渲染需本机安装 kuml CLI(choco install kuml),未装时预览保留源码。',
+        snippet:
+          'activityDiagram(name = "Order checkout") {\n    val start = initialNode()\n    val validate = action(name = "Validate cart")\n    val ok = decision(name = "valid?")\n    val charge = action(name = "Charge card")\n    val end = finalNode()\n    edge(from = start, to = validate)\n    edge(from = validate, to = ok)\n    edge(from = ok, to = charge, guard = "valid")\n    edge(from = charge, to = end)\n}',
       },
     ],
   },
