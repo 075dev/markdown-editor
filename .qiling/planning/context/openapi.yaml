@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: markdown-editor
-  version: 0.3.2
+  version: 0.3.3
   description: |
     本地文件优先的 Markdown 编辑器(Tauri 2 + Vue 3 + CodeMirror 6)的 IPC 能力契约。
 
@@ -32,6 +32,7 @@ info:
     - Q: kUML 支持(add-005)如何接入? → A: 新端点 /ipc/render-kuml(Rust 探测 PATH 中 kuml CLI,临时 .kuml.kts + `kuml render --format svg`)。渲染走 mermaid 模式:管线输出源码块,PreviewPane 客户端异步调用换 SVG(经零依赖 DOMParser 清洗后注入);CLI 未安装(KUML_NOT_FOUND)或渲染失败(KUML_RENDER_FAILED)一律保留源码块 + 提示,不阻断编辑。Web 模式跳过。无新事件(2026-10-09)
     - Q: 语法速查面板(add-006)如何实现? → A: 纯前端——应用内模态速查浮层(F1 / 标题栏按钮 / 编辑器右键菜单三入口),内置 Markdown/GFM/数学(KaTeX)/mermaid/plantuml/kuml 六域条目(名称+示例+一句话说明),关键词过滤 + 一键复制(复用 writeClipboard);内容打包离线可用,不改编辑器状态、不碰撤销栈;无新端点/事件(2026-10-09)
     - Q: 速查内容扩充(add-007)? → A: 纯内容——28 → 55 条(markdown 17/gfm 6/数学 12/mermaid 8/plantuml 7/kuml 5),UI 与交互零变化;铁律:非标准语法(编辑器渲染不出的)一律不收,kUML 条目仅限官方验证构造(README Quick Start/llm 页/官方 examples 三源),数据测试以「调用白名单」哨兵固化;无新端点/事件(2026-10-09)
+    - Q: 速查全域完整化(add-008)? → A: 纯内容——55 → 97 条,收录标准 = 「编辑器渲染得出的全部语法域的常用全集」:markdown 22(评审实证预览管线丢弃 raw HTML,内嵌 HTML 条目按铁律移除)/gfm 8/数学 28(16 类高频命令组,非 800+ 命令全表)/mermaid 16(新渲染器以 node 探针实证 parse 通过为准,实验性失败即弃)/plantuml 13/kuml 10(官方 diagram-types.adoc 全部有 DSL 样本,收录常用 10 图型,小众型标注边界);kUML 白名单哨兵扩至 39 构造(diagram-types.adoc 为第四官方来源);无新端点/事件(2026-10-09)
 
 servers:
   - url: tauri://ipc

@@ -1,16 +1,21 @@
 status: passed
-verified_at_commit: 7a2e899
+verified_at_commit: 24aef26
+scope: add-007(速查扩充 55 条)+ add-008(速查全域完整化 97 条)
+verified_at: 2026-10-09
 
-# 交付时效声明(2026-10-09,add-005 + add-006 交付)
+# 交付时效声明(2026-10-09,add-007 + add-008 交付)
 
-- **status: passed @ `7a2e899`**(分支 ql/add-005-kuml)——本次交付增量:`67171c6(main)..7a2e899` = add-005(kUML 图表支持)+ add-006(应用内语法速查面板)。主会话 fresh evidence:
+- **status: passed @ `24aef26`**(分支 ql/add-008-cheatsheet-complete,基于 a35b8cf=add-007)——本次交付增量:`25d3868(main)..24aef26` = add-007(速查 28→55 条)+ add-008(速查 55→97 条)。主会话 fresh evidence(两增量终态代码上):
   - `pnpm typecheck`:PASS(exit 0)
-  - `pnpm test -- --run`:PASS **380/380**(42 文件;基线 337 + add-005 新增 16 + add-006 新增 27)
-  - `pnpm build`:PASS(10.30s)
-  - `cargo test`(src-tauri):PASS **17/17**(render_kuml 新增 10 例);`cargo check` PASS(仅存量 warning)
-- 注:`pnpm lint` 因 @eslint/js 缺失不可跑(预存损坏,基线同样);kUML 真实 CLI 端到端待用户环境(`choco install kuml`),KUML_NOT_FOUND 路径已真机条件测试覆盖。
-- 各增量详细记录:[./add-005-fill-w1.md](./add-005-fill-w1.md)、[./add-005-fill-w2.md](./add-005-fill-w2.md)、[./add-006-fill-w1.md](./add-006-fill-w1.md)
-- 下方 2026-09-28 声明与 Phase 1 正文为历史记录,保留作审计留痕。
+  - `pnpm test -- --run`:PASS **380/380**(42 文件;哨兵原地改写,用例数与 v0.3.0 基线同)
+  - `pnpm build`:PASS(9.46s)
+- 注:`pnpm lint` 因 @eslint/js 缺失不可跑(预存损坏,基线同样);内容实证由 worker 与评审员双路执行(mermaid 16/16 node 探针 PARSE-OK、KaTeX 28 条 throwOnError 零报错、PlantUML 官方服务渲染核验、kUML 与 diagram-types.adoc 逐字比对)。
+- 各增量详细记录:[./add-007-review.md](./add-007-review.md)、[./add-008-fill-w1.md](./add-008-fill-w1.md)、[./add-008-review.md](./add-008-review.md)
+- 下方 2026-10-09 前序声明与 Phase 1 正文为历史记录,保留作审计留痕。
+
+# 交付时效声明(2026-10-09,add-005 + add-006 交付 · 前序)
+
+- **status: passed @ `7a2e899`**(分支 ql/add-005-kuml,已随 PR #2 合并 + v0.3.0 发布)——增量:`67171c6(main)..7a2e899` = add-005(kUML 图表支持)+ add-006(应用内语法速查面板)。fresh evidence:typecheck exit 0、`pnpm test` **380/380**、`pnpm build` 10.30s、`cargo test` **17/17**;`pnpm lint` 预存损坏不可跑;kUML 真实 CLI 端到端待用户环境。详见 [./add-005-fill-w1.md](./add-005-fill-w1.md)、[./add-005-fill-w2.md](./add-005-fill-w2.md)、[./add-006-fill-w1.md](./add-006-fill-w1.md)。
 
 # 验证报告(Verification)—— ql Phase 1 自动保存 + 冲突安全网
 

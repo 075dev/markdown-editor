@@ -454,3 +454,25 @@ sequenceDiagram
    哨兵固化:kUML snippet 中每个 `标识符(` 必须命中白名单集合。
 3. 各节条目下限(测试哨兵):markdown 17 / gfm 6 / 数学 12 / mermaid 8 / plantuml 7 /
    kuml 5。
+
+### 速查全域完整化(add-008,纯内容,无行为变化)
+
+用户反馈「做全部的所有语法的速查」:条目 55 → **97**,UI/交互零变化。
+
+**收录标准(完整化边界):** 「编辑器渲染得出的全部语法域的**常用全集**」——
+非 API 全表:KaTeX 800+ 命令取 16 类高频组;mermaid 实验性渲染器以 node 探针
+实证 parse 通过为准,失败即弃;PlantUML 小众扩展(salt/archimate/ditaa)不收;
+**Markdown 内嵌 HTML 不收(评审实证:预览管线对 raw HTML 整体丢弃,
+hast-util-sanitize 无 raw 分支——如需支持须另行立项)**;
+kUML 官方 diagram-types.adoc 已含全部 14 UML 型样本,收录常用 10 图型
+(timing/communication/interaction-overview/composite-structure/profile/object/
+package 小众/低优先型暂缓,补录走同一官方来源流程)。
+
+各节条目(测试哨兵同步):markdown 22 / gfm 8 / 数学 28 / mermaid 16 / plantuml 13 /
+kuml 10。
+
+**kUML 第四官方来源:** docs/diagram-types.adoc(全部 UML 图型 DSL 样本,已核读:
+stateDiagram/state/initial/final/goesTo、useCaseDiagram/actor/useCase/associates/
+includes、componentDiagram/component/dependsOn、deploymentDiagram/
+executionEnvironment/node/artifact/device/communicationPath、activityDiagram/
+initialNode/action/decision/finalNode/edge/guard)。白名单哨兵扩至 39 构造。

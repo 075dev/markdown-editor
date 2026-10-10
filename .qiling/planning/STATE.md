@@ -11,7 +11,7 @@ review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: PR #2 已合并至 main(merge 9a6b026)+ v0.3.0 发布(add-005 kUML 支持 + add-006 语法速查面板,tag 4ca4a2e,Release 含 msi/setup/exe 三产物,Latest,2026-10-09)
+last_activity: add-008 语法速查全域完整化(55→97 条,常用全集;mermaid 探针门 8/8 通过;kUML 白名单 39 构造四来源;契约 0.3.3)并入 chapter-01,评审 2 轮 approved(首轮 2 critical 已修:内嵌 HTML 实证移除、PlantUML 思维导图文案),分支 ql/add-008-cheatsheet-complete(含 add-007 a35b8cf)待交付,2026-10-09
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
@@ -73,3 +73,5 @@ event_messages_count: 1
 - add-004(2026-09-28): markdown 语法染色主题 → 并入 chapter-03(§1.6,add-003 方向纠正后新增),评审 approved(2 轮,首轮 1 critical 已修)。纯前端:syntaxTheme 偏好(follow/rainbow/academic/mono,默认 follow)+ --syntax-* 语法语义层(12 变量,标题 1-6 级分色 + 行内代码/粗体/斜体/删除线/链接/列表)+ 编辑器源码高亮与预览渲染同驱动 + 设置页下拉;围栏代码块不属本层(:not(pre)>code 限定);契约 0.2.2(仅行为约定);测试 327→335。详见 .planning/add/004-syntax-theme.md
 - add-005(2026-10-09): kUML 图表语法支持(https://kuml.dev)→ 并入 chapter-01(附录 A.5,自动判断:预览渲染域),评审 approved(1 轮,0 critical / 5 non-critical,N1 sanitizer 加固已修)。新端点 /ipc/render-kuml(Rust 探测 kuml CLI + 临时 .kuml.kts + 60s 超时)+ mermaid 式客户端渲染(services/kuml.ts,FNV-1a 源码缓存,零依赖 DOMParser SVG 清洗)+ stripDiagramCode += kuml + PreviewPane 步骤 4;契约 0.2.2→0.3.0;测试 337→353 + cargo 17/17。发现既有缺陷:mermaid 选择器 pre.language-mermaid>code 对真实管线输出命中 0(静默失效,候选 bugfix-006)。真实 CLI 端到端待用户环境。详见 .qiling/planning/add/005-kuml-support.md
 - add-006(2026-10-09): 应用内语法速查面板 → 并入 chapter-01(附录 A.6,自动判断:编辑器核心 UX),评审 approved(1 轮,0 critical / 2 non-critical,N1 经官方 README 原文闭环、N2 文案已修)。纯前端:F1/标题栏「?速查」/右键菜单三入口,六域 28 条(Markdown/GFM/KaTeX/mermaid/plantuml/kUML,数据测试含 kUML 防臆造哨兵)+ 关键词过滤 + 一键复制(writeClipboard);role=dialog/焦点陷阱/Esc 归还,浮层仅拦 F1/Esc/Tab;契约 0.3.0→0.3.1(patch);测试 353→380。详见 .qiling/planning/add/006-syntax-cheatsheet.md
+- add-007(2026-10-09): 语法速查内容扩充 28→55 条 → 并入 chapter-01(附录 A.7,add-006 同域续作),评审 2 轮 approved(首轮 1 critical:mermaid-mindmap 描述声称不支持的 [( )] 形状,实证后修文案)。Markdown 17/GFM 6/数学 12/mermaid 8/plantuml 7/kUML 5;kUML 白名单哨兵(18 构造,三官方来源:README Quick Start/kuml.dev/llm/官方 examples);契约 0.3.1→0.3.2(patch);主会话直接实现(评审复核裁剪合理)。DEFERRED:KaTeX 渲染管线未接线(数学节展示语法但预览不渲染,README 路线图 Phase 3,待立项)。详见 .qiling/planning/add/007-cheatsheet-expand.md
+- add-008(2026-10-09): 语法速查全域完整化 55→97 条 → 并入 chapter-01(附录 A.8,add-006/007 同域续作),评审 2 轮 approved(首轮 2 critical 已修:①md-inline-html 条目经真实管线实证 raw HTML 被整体丢弃后按铁律移除,②PlantUML 思维导图「**_ 表示右侧」文案纠正,SVG 几何实证)。收录标准=常用全集:Markdown 22/GFM 8/数学 28(16 类高频组)/mermaid 16(8 新渲染器全部 node 探针 PARSE-OK)/plantuml 13/kUML 10(diagram-types.adoc 第四官方来源,白名单 39 构造);契约 0.3.2→0.3.3(patch);worker 实现(mermaid 探针自证 + PlantUML 甘特语法实证纠错)。DEFERRED:KaTeX 接线、内嵌 HTML 支持(sanitize raw 分支)、kUML 小众图型补录。详见 .qiling/planning/add/008-cheatsheet-complete.md
