@@ -4,14 +4,14 @@ ql_state_version: '1.0'
 current_phase: '1_shipped'
 chapter_id: chapter-02
 docs_path: .qiling/docs/
-work_branch: ql/add-005-kuml
+work_branch: ql/add-008-cheatsheet-complete
 base_sha: bc234d254c727c66814b2cf22d8ec8661ac7093c
 status: shipped
 review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: add-008 语法速查全域完整化(55→97 条,常用全集;mermaid 探针门 8/8 通过;kUML 白名单 39 构造四来源;契约 0.3.3)并入 chapter-01,评审 2 轮 approved(首轮 2 critical 已修:内嵌 HTML 实证移除、PlantUML 思维导图文案),分支 ql/add-008-cheatsheet-complete(含 add-007 a35b8cf)待交付,2026-10-09
+last_activity: add-007(速查 55 条)+ add-008(速查全域完整化 97 条)shipped via PR #3(6c1ffdb,契约 0.3.3,380/380 + build 9.46s,双增量评审各 2 轮 approved,待人工合并,2026-10-09)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
