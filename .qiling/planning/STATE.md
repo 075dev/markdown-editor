@@ -11,7 +11,7 @@ review_verdict: approved
 review_rounds: 2
 reviewed_range: bc234d2..5fa1686
 waves_executed: 4
-last_activity: add-007(速查 55 条)+ add-008(速查全域完整化 97 条)shipped via PR #3(6c1ffdb,契约 0.3.3,380/380 + build 9.46s,双增量评审各 2 轮 approved,待人工合并,2026-10-09)
+last_activity: PR #3 已合并至 main(merge a89ddb7)+ v0.3.1 发布(add-007/add-008 语法速查全域完整化 28→97 条,tag 25beb3c,Release 含 msi/setup/exe 三产物,Latest,2026-10-10)
 skeleton_endpoints: 11
 skeleton_events: 1
 waves_executed: 2
