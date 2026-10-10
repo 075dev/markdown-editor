@@ -1,6 +1,6 @@
 [package]
 name = "markdown-editor"
-version = "0.3.0"
+version = "0.3.1"
 description = "A local-first Markdown editor built with Tauri 2 + Vue 3 + CodeMirror 6."
 authors = ["you"]
 edition = "2021"
