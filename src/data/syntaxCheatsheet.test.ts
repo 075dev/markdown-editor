@@ -1,10 +1,13 @@
 /**
- * 语法速查数据的形状与覆盖面回归(add-006)。
+ * 语法速查数据的形状与覆盖面回归(add-006 建立,add-007 / add-008 扩充)。
  *
  * 哨兵意图:
- *   - 条目数下限锁定契约覆盖面,防止后续裁剪缩水;
- *   - kUML 节所有 snippet 必须含 "classDiagram" —— 防止臆造的
- *     非 DSL 构造混进 kUML 节(该节只允许官方验证过的 Kotlin DSL);
+ *   - 条目数下限锁定契约覆盖面,防止后续裁剪缩水
+ *     (add-007:17/6/12/8/7/5 → add-008:22/8/28/16/13/10);
+ *   - kUML 节所有「标识符(」调用必须命中官方验证白名单 —— 该节只允许
+ *     四来源验证过的 Kotlin DSL 构造(GitHub README Quick Start /
+ *     kuml.dev/llm / 官方 examples / docs/diagram-types.adoc),
+ *     白名单外的新增一律视为臆造拦截;
  *   - 围栏开合检查保证照抄进编辑器的示例本身是合法 Markdown。
  */
 import { describe, expect, it } from 'vitest'
@@ -31,14 +34,14 @@ describe('syntaxCheatsheet 数据', () => {
     ])
   })
 
-  it('每节条目数达到契约下限(10/5/3/3/3/2)', () => {
+  it('每节条目数达到契约下限(22/8/28/16/13/10)', () => {
     const minimums: Record<string, number> = {
-      'markdown-basics': 10,
-      'gfm-extended': 5,
-      math: 3,
-      mermaid: 3,
-      plantuml: 3,
-      kuml: 2,
+      'markdown-basics': 22,
+      'gfm-extended': 8,
+      math: 28,
+      mermaid: 16,
+      plantuml: 13,
+      kuml: 10,
     }
     for (const section of cheatSections) {
       expect(section.entries.length, `节 ${section.id}`).toBeGreaterThanOrEqual(
@@ -65,11 +68,69 @@ describe('syntaxCheatsheet 数据', () => {
     }
   })
 
-  it('kUML 节所有 snippet 都含 classDiagram(防臆造构造的回归哨兵)', () => {
+  it('kUML 节所有调用都在官方验证白名单内(防臆造构造的回归哨兵)', () => {
+    // 四来源:README Quick Start / kuml.dev/llm / 官方 examples /
+    // docs/diagram-types.adoc。块形式构造(source { })与属性赋值
+    // (aggregation = ...)不跟「(」,天然不在扫描范围;中缀形式
+    // goesTo / associates / includes / dependsOn 同样不带括号。
+    const KUML_VERIFIED_CALLS = new Set([
+      'classDiagram',
+      'classOf',
+      'enumOf',
+      'literal',
+      'attribute',
+      'operation',
+      'association',
+      'multiplicity',
+      'sequenceDiagram',
+      'lifeline',
+      'message',
+      'reply',
+      'c4Model',
+      'person',
+      'softwareSystem',
+      'relationship',
+      'systemContextDiagram',
+      'include',
+      // docs/diagram-types.adoc(状态 / 用例 / 组件 / 部署 / 活动图)
+      'stateDiagram',
+      'state',
+      'initial',
+      'final',
+      'useCaseDiagram',
+      'actor',
+      'useCase',
+      'componentDiagram',
+      'component',
+      'deploymentDiagram',
+      'executionEnvironment',
+      'node',
+      'artifact',
+      'device',
+      'communicationPath',
+      'activityDiagram',
+      'initialNode',
+      'action',
+      'decision',
+      'finalNode',
+      'edge',
+    ])
     const kuml = cheatSections.find((s) => s.id === 'kuml')
     expect(kuml).toBeDefined()
     for (const entry of kuml!.entries) {
-      expect(entry.snippet, `kUML 条目 ${entry.id}`).toContain('classDiagram')
+      // 先剥离字符串字面量:message label 等文本里可能出现 foo( 样式内容
+      // (官方示例即有 label = "processPayment(order)"),并非 DSL 调用
+      const codeOnly = entry.snippet.replace(/"(?:[^"\\]|\\.)*"/g, '')
+      const calls = [...codeOnly.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)].map(
+        (m) => m[1],
+      )
+      expect(calls.length, `kUML 条目 ${entry.id} 应包含 DSL 调用`).toBeGreaterThan(0)
+      for (const call of calls) {
+        expect(
+          KUML_VERIFIED_CALLS.has(call),
+          `kUML 条目 ${entry.id} 出现未验证调用 ${call}()`,
+        ).toBe(true)
+      }
     }
   })
 

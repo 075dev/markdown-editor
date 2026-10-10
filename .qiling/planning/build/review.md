@@ -15,7 +15,25 @@ inputs:
 review_tier: THOROUGH (30 文件 > 20,涉及状态机/错误处理路径;全量三结论 + 对抗检查)
 ---
 
-## 交付评审汇总(2026-10-09,add-005 + add-006 交付增量)
+---
+verdict: approved
+rounds: 2
+scope: add-007 + add-008
+---
+
+# 交付评审汇总(2026-10-09,add-007 + add-008 交付增量)
+
+总体 verdict:**approved**。本次交付范围(`25d3868(main)..HEAD`,分支 ql/add-008-cheatsheet-complete,含 add-007 a35b8cf)内各增量的独立评审结论:
+
+| 增量 | 评审方式 | 轮次 | 结论 |
+|------|----------|------|------|
+| add-007 速查扩充 28→55 | ql-reviewer 三结论(主会话直接实现,裁剪经复核) | 2 轮 | approved(首轮 1 critical:mermaid-mindmap 声称不支持的 [( )] 形状,实证后修文案;N2 CLI 提示补齐) |
+| add-008 速查全域完整化 55→97 | ql-reviewer 三结论(worker 实现,mermaid 探针自证) | 2 轮 | approved(首轮 2 critical:①md-inline-html 经真实管线实证 raw HTML 被整体丢弃,按铁律整条移除;②PlantUML 思维导图「**_ 表示右侧」文案纠正,SVG 几何实证) |
+
+各轮详情:[./add-007-review.md](./add-007-review.md)、[./add-008-review.md](./add-008-review.md)。
+内容实证双路:mermaid 16/16 node 探针 PARSE-OK;KaTeX 28 条 throwOnError 零报错;PlantUML 官方服务渲染核验(含甘特语法实证纠错);kUML 与 diagram-types.adoc 逐字比对(白名单 39 构造)。
+
+## 交付评审汇总(2026-10-09,add-005 + add-006 交付增量 · 前序)
 
 总体 verdict:**approved**。本次交付范围(`67171c6..7a2e899`,分支 ql/add-005-kuml)内各增量的独立评审结论:
 
